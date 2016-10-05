@@ -31,19 +31,19 @@ ADDITIONAL_LIBS 	:= -L$(CPPUNIT_DIR)/lib -lcppunit
 
 # dep apps
 APPLICATION_DIR    := $(CURRENT_DIR)/..
-APPLICATION_NAME   := chrysalis.git
+APPLICATION_NAME   := chrysalis
 include            $(FRAMEWORK_DIR)/app.mk
 
 APPLICATION_DIR    := $(CURRENT_DIR)
-APPLICATION_NAME   := chrysalis.git-unit
+APPLICATION_NAME   := chrysalis-unit
 BUILD_EXEC         := yes
 DEP_APPS    ?= $(shell $(FRAMEWORK_DIR)/scripts/find_dep_apps.py $(APPLICATION_NAME))
 include $(FRAMEWORK_DIR)/app.mk
 
-# Find all the CHRYSALIS.GIT unit test source files and include their dependencies.
-chrysalis.git-unit_srcfiles := $(shell find $(CURRENT_DIR) -name "*.C")
-chrysalis.git-unit_deps := $(patsubst %.C, %.$(obj-suffix).d, $(chrysalis.git-unit_srcfiles))
--include $(chrysalis.git-unit_deps)
+# Find all the CHRYSALIS unit test source files and include their dependencies.
+chrysalis-unit_srcfiles := $(shell find $(CURRENT_DIR) -name "*.C")
+chrysalis-unit_deps := $(patsubst %.C, %.$(obj-suffix).d, $(chrysalis-unit_srcfiles))
+-include $(chrysalis-unit_deps)
 
 ###############################################################################
 # Additional special case targets should be added here

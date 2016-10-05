@@ -1,0 +1,55 @@
+#include "ChrysalisApp.h"
+#include "Moose.h"
+#include "AppFactory.h"
+#include "ModulesApp.h"
+#include "MooseSyntax.h"
+
+template<>
+InputParameters validParams<ChrysalisApp>()
+{
+  InputParameters params = validParams<MooseApp>();
+
+  params.set<bool>("use_legacy_uo_initialization") = false;
+  params.set<bool>("use_legacy_uo_aux_computation") = false;
+  params.set<bool>("use_legacy_output_syntax") = false;
+
+  return params;
+}
+
+ChrysalisApp::ChrysalisApp(InputParameters parameters) :
+    MooseApp(parameters)
+{
+  Moose::registerObjects(_factory);
+  ModulesApp::registerObjects(_factory);
+  ChrysalisApp::registerObjects(_factory);
+
+  Moose::associateSyntax(_syntax, _action_factory);
+  ModulesApp::associateSyntax(_syntax, _action_factory);
+  ChrysalisApp::associateSyntax(_syntax, _action_factory);
+}
+
+ChrysalisApp::~ChrysalisApp()
+{
+}
+
+// External entry point for dynamic application loading
+extern "C" void ChrysalisApp__registerApps() { ChrysalisApp::registerApps(); }
+void
+ChrysalisApp::registerApps()
+{
+  registerApp(ChrysalisApp);
+}
+
+// External entry point for dynamic object registration
+extern "C" void ChrysalisApp__registerObjects(Factory & factory) { ChrysalisApp::registerObjects(factory); }
+void
+ChrysalisApp::registerObjects(Factory & factory)
+{
+}
+
+// External entry point for dynamic syntax association
+extern "C" void ChrysalisApp__associateSyntax(Syntax & syntax, ActionFactory & action_factory) { ChrysalisApp::associateSyntax(syntax, action_factory); }
+void
+ChrysalisApp::associateSyntax(Syntax & /*syntax*/, ActionFactory & /*action_factory*/)
+{
+}
