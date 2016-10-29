@@ -123,6 +123,8 @@ libmoose-opt*
 libmoose-dbg*
 
 #doxygen generated
+doc/doxygen/Doxyfile.bak
+doc/doxygen/html
 */doc/doxygen/html/*
 */doc/doxygen/**/*
 moose/doc/doxygen/html/*
