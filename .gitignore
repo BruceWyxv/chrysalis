@@ -148,3 +148,5 @@ include/base/*Revision.h
 
 # phase_field/tests/solution_rasterizer
 out.xyz
+
+compile_commands\.json
