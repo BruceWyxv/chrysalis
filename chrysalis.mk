@@ -35,24 +35,24 @@ SERPENT_SRC 		:= $(sort $(wildcard $(LOCAL_SERPENT_DIR)/*.c))
 SERPENT_OBJ		:= $(patsubst %.c, %.$(obj-suffix), $(SERPENT_SRC))
 SERPENT_DEPS		:= $(patsubst %.$(obj-suffix), %.$(obj-suffix).d, $(SERPENT_OBJ))
 
-ADDITIONAL_CPPFLAGS	+= -w -ansi -ffast-math -O3
-ADDITIONAL_LDFLAGS	+= -lm
+SERPENT_CPPFLAGS	:= $(ADDITIONAL_CPPFLAGS) -w -ansi -ffast-math -O3 -DOPEN_MP -DMPI
+SERPENT_LDFLAGS		:= $(ADDITIONAL_LDFLAGS) -lm -fopenmp
 
 MESSAGE_DIRECTORY	:= - The local copy of Serpent is in '$(LOCAL_SERPENT_DIR)'
 ifeq ($(shell ldconfig -p | grep "libgd\."),)
   MESSAGE_GRAPHICS	:= - Compiling Serpent without GD graphics support
-  ADDITIONAL_CPPFLAGS	+= -DNO_GFX_MODE
+  SERPENT_LDFLAGS	+= -DNO_GFX_MODE
 else
   MESSAGE_GRAPHICS	:= - GD graphics library found! Compiling Serpent with graphics support
-  ADDITIONAL_LDFLAGS	+= -lgd
+  SERPENT_LDFLAGS	+= -lgd
 endif
 
 ifeq ($(METHOD),dbg)
-  MESSAGE_MODE	:= - Debug mode deteted, compiling Serpent with debugging options
-  ADDITIONAL_CPPFLAGS	+= -DDEBUG -g
-  ADDITIONAL_LDFLAGS	+= -g
+  MESSAGE_MODE		:= - Debug mode deteted, compiling Serpent with debugging options
+  SERPENT_CPPFLAGS	+= -DDEBUG -g
+  SERPENT_LDFLAGS	+= -g
 else
-  MESSAGE_MODE	:= - Compiling Serpent in optimized mode
+  MESSAGE_MODE		:= - Compiling Serpent in optimized mode
 endif
 
 app_INCLUDES		+= -I$(LOCAL_SERPENT_DIR)
@@ -75,11 +75,16 @@ export MESSAGE_NOTIFICATION
 
 # Create the rule to build the Serpent library
 
+%.$(obj-suffix) : %.c
+	@echo "MOOSE Compiling Serpent (in "$(METHOD)" mode) "$<"..."
+	@$(libmesh_LIBTOOL) --tag=CC $(LIBTOOLFLAGS) --mode=compile --quiet \
+	  $(libmesh_CC) $(libmesh_CPPFLAGS) $(SERPENT_CPPFLAGS) $(libmesh_CFLAGS) $(app_INCLUDES) $(libmesh_INCLUDE) -MMD -MP -MF $@.d -MT $@ -c $< -o $@
+
 $(SERPENT_LIB): pre_install_notifications $(SERPENT_OBJ)
 	@echo "Linking Library "$@"..."
 	@$(libmesh_LIBTOOL) --tag=CC $(LIBTOOLFLAGS) --mode=link --quiet \
           $(libmesh_CC) $(libmesh_CFLAGS) -o $@ $(SERPENT_OBJ) \
-          $(libmesh_LDFLAGS) $(ADDITIONAL_LDFLAGS) $(EXTERNAL_FLAGS) \
+          $(libmesh_LDFLAGS) $(SERPENT_LDFLAGS) $(EXTERNAL_FLAGS) \
           -rpath $(realpath $(LOCAL_SERPENT_DIR))
 	@$(libmesh_LIBTOOL) --mode=install --quiet install -c $(SERPENT_LIB) $(realpath $(LOCAL_SERPENT_DIR))
 
