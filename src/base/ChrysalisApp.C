@@ -8,11 +8,6 @@ template<>
 InputParameters validParams<ChrysalisApp>()
 {
   InputParameters params = validParams<MooseApp>();
-
-  params.set<bool>("use_legacy_uo_initialization") = false;
-  params.set<bool>("use_legacy_uo_aux_computation") = false;
-  params.set<bool>("use_legacy_output_syntax") = false;
-
   return params;
 }
 
@@ -43,7 +38,7 @@ ChrysalisApp::registerApps()
 // External entry point for dynamic object registration
 extern "C" void ChrysalisApp__registerObjects(Factory & factory) { ChrysalisApp::registerObjects(factory); }
 void
-ChrysalisApp::registerObjects(Factory & factory)
+ChrysalisApp::registerObjects(Factory & /*factory*/)
 {
 }
 
