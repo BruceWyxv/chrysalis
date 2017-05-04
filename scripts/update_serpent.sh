@@ -1,6 +1,7 @@
 #!/bin/bash
-# This script copies the files from ${SERPENT_HOME} to ./serpent and
-# prepares them to be compile compatibly for use within MOOSE
+# This script copies the files from ${SERPENT_HOME} to the argument provided,
+# defaulting to ./serpent otherwise, them modifies the headers files for use
+# within MOOSE
 
 # Acquire/define the directory for the local copy
 CURRENT_DIR=$(pwd)

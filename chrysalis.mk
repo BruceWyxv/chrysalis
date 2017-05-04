@@ -35,28 +35,49 @@ SERPENT_SRC 		:= $(sort $(wildcard $(LOCAL_SERPENT_DIR)/*.c))
 SERPENT_OBJ		:= $(patsubst %.c, %.$(obj-suffix), $(SERPENT_SRC))
 SERPENT_DEPS		:= $(patsubst %.$(obj-suffix), %.$(obj-suffix).d, $(SERPENT_OBJ))
 
-SERPENT_CPPFLAGS	:= $(ADDITIONAL_CPPFLAGS) -w -ansi -ffast-math -O3 -DOPEN_MP -DMPI
-SERPENT_LDFLAGS		:= $(ADDITIONAL_LDFLAGS) -lm -fopenmp
+SERPENT_CFLAGS	:= $(ADDITIONAL_CPPFLAGS) -w -ansi -ffast-math -O3
+SERPENT_LDFLAGS		:= $(ADDITIONAL_LDFLAGS) -lm
 
+# Add Serpent to this app's dependencies
+app_INCLUDES		+= -I$(LOCAL_SERPENT_DIR)
+app_LIBS		+= $(SERPENT_LIB)
+
+# Local source directory
 MESSAGE_DIRECTORY	:= - The local copy of Serpent is in '$(LOCAL_SERPENT_DIR)'
+
+# MPI
+ifeq ($(findstring mpi,$(libmesh_CC)),)
+  MESSAGE_MPI		:= - Compiling Serpent without MPI support
+else
+  MESSAGE_MPI		:= - MPI compiler detected! Compiling Serpent with MPI support
+  SERPENT_CFLAGS	+= -DMPI
+endif
+
+# OpenMP
+ifeq ($(findstring openmp,$(libmesh_CFLAGS)),)
+  MESSAGE_OPENMP	:= - Compiling Serpent for single-thread operations
+else
+  MESSAGE_OPENMP	:= - OpenMP libraries found! Compiling Serpent with OpenMP support
+  SERPENT_CFLAGS	+= -DOPEN_MP
+endif
+
+# Graphics
 ifeq ($(shell ldconfig -p | grep "libgd\."),)
   MESSAGE_GRAPHICS	:= - Compiling Serpent without GD graphics support
-  SERPENT_LDFLAGS	+= -DNO_GFX_MODE
+  SERPENT_CFLAGS	+= -DNO_GFX_MODE
 else
   MESSAGE_GRAPHICS	:= - GD graphics library found! Compiling Serpent with graphics support
   SERPENT_LDFLAGS	+= -lgd
 endif
 
+# Debug
 ifeq ($(METHOD),dbg)
   MESSAGE_MODE		:= - Debug mode deteted, compiling Serpent with debugging options
-  SERPENT_CPPFLAGS	+= -DDEBUG -g
+  SERPENT_CFLAGS	+= -DDEBUG -g
   SERPENT_LDFLAGS	+= -g
 else
   MESSAGE_MODE		:= - Compiling Serpent in optimized mode
 endif
-
-app_INCLUDES		+= -I$(LOCAL_SERPENT_DIR)
-app_LIBS		+= $(SERPENT_LIB)
 
 ###############################################################################
 
@@ -65,6 +86,8 @@ app_LIBS		+= $(SERPENT_LIB)
 define MESSAGE_NOTIFICATION
 ================================================================================
   $(MESSAGE_DIRECTORY)
+  $(MESSAGE_MPI)
+  $(MESSAGE_OPENMP)
   $(MESSAGE_GRAPHICS)
   $(MESSAGE_MODE)
 ================================================================================
@@ -78,7 +101,7 @@ export MESSAGE_NOTIFICATION
 %.$(obj-suffix) : %.c
 	@echo "MOOSE Compiling Serpent (in "$(METHOD)" mode) "$<"..."
 	@$(libmesh_LIBTOOL) --tag=CC $(LIBTOOLFLAGS) --mode=compile --quiet \
-	  $(libmesh_CC) $(libmesh_CPPFLAGS) $(SERPENT_CPPFLAGS) $(libmesh_CFLAGS) $(app_INCLUDES) $(libmesh_INCLUDE) -MMD -MP -MF $@.d -MT $@ -c $< -o $@
+	  $(libmesh_CC) $(libmesh_CPPFLAGS) $(SERPENT_CFLAGS) $(libmesh_CFLAGS) -MMD -MP -MF $@.d -MT $@ -c $< -o $@
 
 $(SERPENT_LIB): pre_install_notifications $(SERPENT_OBJ)
 	@echo "Linking Library "$@"..."
