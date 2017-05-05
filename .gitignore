@@ -152,9 +152,6 @@ out.xyz
 
 compile_commands\.json
 
-# Serpent
-serpent
-
 unit/include/base/Chrysalis-unitRevision\.h
 
 build/header_symlinks/

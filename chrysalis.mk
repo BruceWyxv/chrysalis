@@ -21,9 +21,11 @@ endif
 
 # Run the script to make/update a local copy of the Serpent source code
 
-LOCAL_SERPENT_DIR 	:= $(CURDIR)/serpent
+APPLICATION_DIR			:= $(realpath $(APPLICATION_DIR))
 
-TRICK_SCRIPT_TO_RUN	:= $(shell ./scripts/update_serpent.sh $(LOCAL_SERPENT_DIR))
+LOCAL_SERPENT_DIR 	:= $(APPLICATION_DIR)/serpent
+
+TRICK_SCRIPT_TO_RUN	:= $(shell $(APPLICATION_DIR)/scripts/update_serpent.sh $(APPLICATION_DIR)/serpent)
 
 ###############################################################################
 
@@ -98,7 +100,7 @@ export MESSAGE_NOTIFICATION
 
 # Create the rule to build the Serpent library
 
-%.$(obj-suffix) : %.c
+$(LOCAL_SERPENT_DIR)/%.$(obj-suffix) : $(LOCAL_SERPENT_DIR)/%.c
 	@echo "MOOSE Compiling Serpent (in "$(METHOD)" mode) "$<"..."
 	@$(libmesh_LIBTOOL) --tag=CC $(LIBTOOLFLAGS) --mode=compile --quiet \
 	  $(libmesh_CC) $(libmesh_CPPFLAGS) $(SERPENT_CFLAGS) $(libmesh_CFLAGS) -MMD -MP -MF $@.d -MT $@ -c $< -o $@
@@ -108,8 +110,8 @@ $(SERPENT_LIB): pre_install_notifications $(SERPENT_OBJ)
 	@$(libmesh_LIBTOOL) --tag=CC $(LIBTOOLFLAGS) --mode=link --quiet \
           $(libmesh_CC) $(libmesh_CFLAGS) -o $@ $(SERPENT_OBJ) \
           $(libmesh_LDFLAGS) $(SERPENT_LDFLAGS) $(EXTERNAL_FLAGS) \
-          -rpath $(realpath $(LOCAL_SERPENT_DIR))
-	@$(libmesh_LIBTOOL) --mode=install --quiet install -c $(SERPENT_LIB) $(realpath $(LOCAL_SERPENT_DIR))
+          -rpath $(LOCAL_SERPENT_DIR)
+	@$(libmesh_LIBTOOL) --mode=install --quiet install -c $(SERPENT_LIB) $(LOCAL_SERPENT_DIR)
 
 pre_install_notifications:
 	@echo "$$MESSAGE_NOTIFICATION"
@@ -126,7 +128,7 @@ clean::
 
 clobber::
 	@if [ -d "$(LOCAL_SERPENT_DIR)" ]; then\
-		echo Removing directory $(realpath $(LOCAL_SERPENT_DIR)); \
+		echo Removing directory $(LOCAL_SERPENT_DIR); \
 		rm -rf $(LOCAL_SERPENT_DIR); \
 	fi
 
