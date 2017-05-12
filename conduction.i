@@ -5,7 +5,7 @@
   ny = 40
   nz = 4
   xmin = 0
-  xmax = 1
+  xmax = 2
   ymin = 0
   ymax = 10
   zmin = 0
@@ -28,7 +28,7 @@
 []
 
 [Kernels]
-  active = 'HeatDiff HeatSourceConstant'
+  active = 'HeatTdot HeatSourceTransient'
   [./HeatDiff]
     type = HeatConduction
     variable = T
@@ -50,7 +50,7 @@
 []
 
 [BCs]
-  active = 'bottom'
+  active = 'bottom top'
   [./bottom]
     type = DirichletBC
     variable = T
@@ -87,16 +87,27 @@
 []
 
 [Executioner]
-  type = Steady
+  type = Transient
   solve_type = 'PJFNK'
   #scheme = bdf2
-  #dt = 25
-  #num_steps = 1000
+  dt = 2
+  num_steps = 1
   #petsc_options_iname = '-pc_type -pc_hypre_type'
   #petsc_options_value = 'hypre boomeramg'
 []
 
+[UserObjects]
+  [./functional_expansion]
+    type = FECoefficientsUserObject
+    functional = Cartesian
+    orders = '2 2 2'
+    boundaries = '0 2 0 10 0 1'
+    variable = T
+    execute_on = timestep_end
+  [../]
+[]
+
 [Outputs]
-  file_base = steadystate
+  file_base =
   exodus = true
 []

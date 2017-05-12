@@ -39,16 +39,26 @@ public:
    * @param location The Point at which to evaluate the functional expansion
    * @return A vector of the evaluated terms in the functional expansion
    */
-  virtual const std::vector<libMesh::Real> & operator()(libMesh::Point location) {return expand(location);};
+  const std::vector<libMesh::Real> & operator()(libMesh::Point location) {return expand(location);};
+  std::vector< std::vector<libMesh::Real> > operator()(std::vector<const libMesh::Point *> & locations) {return expand(locations);};
   virtual const std::vector<libMesh::Real> & expand(libMesh::Point location) = 0;
-  virtual std::vector< std::vector<libMesh::Real> > operator()(std::vector<libMesh::Point> & locations) {return expand(locations);};
-  virtual std::vector< std::vector<libMesh::Real> > expand(std::vector<libMesh::Point> & locations) = 0;
+  virtual std::vector< std::vector<libMesh::Real> > expand(std::vector<const libMesh::Point *> & locations) = 0;
 
   /// Returns the current set of expansion coefficients
   const std::vector<libMesh::Real> & getCoefficients() {return _coefficients;};
 
   /// Returns the number of coefficients
   unsigned int getNumberOfCoefficients() {return _number_of_coefficients;};
+
+  /**
+   * Determines if the provided point is within the boundaries of the functional
+   * expansion.
+   * Not all functional expansion use simple cartesian coordinates, so this
+   * must be implemented by a child class that understands its geometrical
+   * dependencies.
+   * @param point The Point to check for inclusion
+   */
+  virtual bool isInBounds(const libMesh::Point * point) = 0;
 
   /**
    * Resets all the coefficients to 1, essentially resulting in a pure
@@ -58,27 +68,33 @@ public:
 
   /// Returns the superimposed expansions terms
   virtual libMesh::Real sample(libMesh::Point location) = 0;
-  virtual std::vector<libMesh::Real> sample(std::vector<libMesh::Point> & locations) = 0;
+  virtual std::vector<libMesh::Real> sample(std::vector<const libMesh::Point *> & locations) = 0;
+
+  /// Sets the bounds of the underlying functional expansion
+  virtual void setBounds(const std::vector<libMesh::Real> & bounds) = 0;
 
   /// Sets the expansion coefficients
   virtual void setCoefficients(std::vector<libMesh::Real> && coefficients);
   virtual void setCoefficients(std::vector<libMesh::Real> & coefficients);
 
 protected:
+  /// Array of bounds
+  std::vector<libMesh::Real> _bounds;
+
   /// The expansion coefficients in linear sequence
   std::vector<libMesh::Real> _coefficients;
-
-  /// The number of expansion coefficients
-  const unsigned int _number_of_coefficients;
 
   /// The previous expansion
   std::vector<libMesh::Real> _expansion;
 
+  /// Indicates if the cached values are valid
+  bool _is_cache_valid;
+
   /// The previous location
   libMesh::Point _location;
 
-  /// Indicates if the cached values are valid
-  bool _is_cache_valid;
+  /// The number of expansion coefficients
+  const unsigned int _number_of_coefficients;
 };
 
 #endif // FUNCTIONALEXPANSIONINTERFACE_H

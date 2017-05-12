@@ -5,10 +5,10 @@
 
 FunctionalExpansionInterface::FunctionalExpansionInterface(unsigned int number_of_coefficients)
   : _coefficients(number_of_coefficients, 1),
-    _number_of_coefficients(number_of_coefficients),
     _expansion(number_of_coefficients, 0),
+    _is_cache_valid(false),
     _location(0),
-    _is_cache_valid(false)
+    _number_of_coefficients(number_of_coefficients)
 {
   _coefficients.shrink_to_fit();
 }

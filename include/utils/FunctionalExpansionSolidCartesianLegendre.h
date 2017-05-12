@@ -4,6 +4,14 @@
 #include "FunctionalExpansionInterface.h"
 #include "FunctionalSeriesLegendre.h"
 
+enum CartesianBoundaries
+{
+  X_MIN, X_MAX,
+  Y_MIN, Y_MAX,
+  Z_MIN, Z_MAX,
+  SIZE
+};
+
 class FunctionalExpansionSolidCartesianLegendre final : public FunctionalExpansionInterface
 {
 public:
@@ -15,11 +23,18 @@ public:
 
   virtual ~FunctionalExpansionSolidCartesianLegendre() = default;
 
-  const std::vector<libMesh::Real> & expand(libMesh::Point location) override;
-  std::vector< std::vector<libMesh::Real> > expand(std::vector<libMesh::Point> & locations) override;
+  virtual const std::vector<libMesh::Real> & expand(libMesh::Point location) override;
+  virtual std::vector< std::vector<libMesh::Real> > expand(std::vector<const libMesh::Point *> & locations) override;
 
-  libMesh::Real sample(libMesh::Point location) override;
-  std::vector<libMesh::Real> sample(std::vector<libMesh::Point> & locations) override;
+  virtual bool isInBounds(const libMesh::Point * point) override;
+
+  virtual libMesh::Real sample(libMesh::Point location) override;
+  virtual std::vector<libMesh::Real> sample(std::vector<const libMesh::Point *> & locations) override;
+
+  virtual void setBounds(const std::vector<libMesh::Real> & bounds) override;
+
+protected:
+  void normalizeLocation(libMesh::Point & location);
 
 private:
   /// Evaluators for the Legendre polynomials
