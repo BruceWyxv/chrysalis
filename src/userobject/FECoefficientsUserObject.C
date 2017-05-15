@@ -68,16 +68,51 @@ FECoefficientsUserObject::FECoefficientsUserObject(const InputParameters & param
 Real
 FECoefficientsUserObject::computeIntegral()
 {
-  // Essentially the same as ElementIntegralUserObject, but with coefficients
-  for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
+  /*
+  * Loop over the quadrature points and ensure we have all the functional
+  * monomials calculated and cached.
+  *
+  * The functional expansion classes are optimized to work with large sets of
+  * quadrature points wherein one or more points share one or more coordinates.
+  * Otherwise, caching the values should not increase processing overhead but
+  * will impact memory usage slightly.
+  */
+  std::vector<unsigned int> locations_qp;
+  std::vector<const Point *> new_locations;
+  for (_qp = 0; _qp < _q_point.size(); ++_qp)
   {
     if (!_functional_expansion->isInBounds(&_q_point[_qp]))
+    {
+      _console << COLOR_RED << "Skipping point: " << _q_point[_qp] << COLOR_DEFAULT << std::endl;
       continue;
+    }
+    else
+    {
+      _console << COLOR_BLUE << "Computing integral at point: " << _q_point[_qp] << COLOR_DEFAULT << std::endl;
+    }
 
-    _console << COLOR_BLUE << "Computing integral at point: " << _q_point[_qp] << COLOR_DEFAULT << std::endl;
+    locations_qp.push_back(_qp);
+    if (!_quadrature_monomials.count(&_q_point[_qp]))
+      new_locations.push_back(&_q_point[_qp]);
+  }
 
-    for (_c = 0; _c < _functional_expansion->getNumberOfCoefficients(); ++_c)
-      _coefficient_partials[_c] += _JxW[_qp] * _coord[_qp] * computeQpIntegral();
+  if (locations_qp.size())
+  {
+    if (new_locations.size())
+    {
+      auto monomial_evaluations = _functional_expansion->expand(new_locations);
+      for (unsigned int l = 0; l < new_locations.size(); ++l)
+        _quadrature_monomials.emplace(new_locations[l], monomial_evaluations[l]);
+    }
+
+    // Essentially the same as ElementIntegralUserObject, but with coefficients
+    for (unsigned int l = 0; l < locations_qp.size(); ++l)
+    {
+      _qp = locations_qp[l];
+
+      for (_c = 0; _c < _functional_expansion->getNumberOfCoefficients(); ++_c)
+        _coefficient_partials[_c] += _JxW[_qp] * _coord[_qp] * computeQpIntegral();
+    }
   }
 
   // Return the zeroth partial sum, equivalent to the average value
@@ -89,7 +124,7 @@ FECoefficientsUserObject::computeQpIntegral()
 {
   /*
    * Essentially the same as ElementIntegralVariableUserObject, but performed
-   * on a coefficient basis using the pre-calculated monomials
+   * on a coefficient basis using the pre-calculated monomials.
    */
   return _quadrature_monomials[&_q_point[_qp]][_c] * ElementIntegralVariableUserObject::computeQpIntegral();
 }
@@ -117,27 +152,6 @@ FECoefficientsUserObject::initialize()
   // Clear the partial sums
   for (auto & partial : _coefficient_partials)
     partial = 0;
-
-  /*
-   * Loop over the quadrature points and ensure we have all the functional
-   * monomials calculated and cached
-   */
-  std::vector<const Point *> locations;
-  for (_qp = 0; _qp < _q_point.size(); ++_qp)
-  {
-    if (!_functional_expansion->isInBounds(&_q_point[_qp]))
-      continue;
-
-    if (!_quadrature_monomials.count(&_q_point[_qp]))
-      locations.push_back(&_q_point[_qp]);
-  }
-
-  if (locations.size())
-  {
-    auto monomial_evaluations = _functional_expansion->expand(locations);
-    for (_qp = 0; _qp < locations.size(); ++_qp)
-      _quadrature_monomials.emplace(locations[_qp], monomial_evaluations[_qp]);
-  }
 }
 
 void
