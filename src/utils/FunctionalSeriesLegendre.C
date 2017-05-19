@@ -12,7 +12,7 @@ FunctionalSeriesLegendre::FunctionalSeriesLegendre(unsigned int order)
   // Nothing here, we only needed to call the parent constructor
 }
 
-void FunctionalSeriesLegendre::evaluateConcreteAndStoreResults()
+void FunctionalSeriesLegendre::orthonormal()
 {
   long k;
   const Real x = _location[0];
@@ -107,5 +107,75 @@ void FunctionalSeriesLegendre::evaluateConcreteAndStoreResults()
 
   for (k = MAX_DIRECT_CALCULATION + 1; k <= _orders[0]; ++k)
     save(k, ((k + k + 1) / (double)k)
-            * (x * load(k - 1) - ((k - 1) / (double)(k + k - 3)) * load(k - 2)));
+            * (x * load(k - 1)  -  ((k - 1) / (double)(k + k - 3)) * load(k - 2)));
+}
+
+void FunctionalSeriesLegendre::pure()
+{
+  long k;
+  const Real x = _location[0];
+  const Real x2 = x * x;
+
+  /* Use direct formula to efficiently evaluate the polynomials for n <= 12   */
+  /*                                                                          */
+  /* The performance benefit diminishes for higher n. It is expected that     */
+  /* the cost of the direct calculation nears that of the recurrence relation */
+  /* in the neighborhood of n == 15, although this theory is untested due to  */
+  /* only implementing the direct calculations up to n == 12.                 */
+  /*                                                                          */
+  /* If you want to calculate the higher-order Legendre Coefficients and      */
+  /* code them in then be my guest.                                           */
+
+  switch (_orders[0])
+  {
+    default:
+    case MAX_DIRECT_CALCULATION:  /* 12 */
+      save(12, ((((((676039 * x2 - 1939938) * x2 + 2078505) * x2 - 1021020) * x2 + 225225) * x2 - 18018) * x2 + 231) / 1024);
+
+    case 11:
+      save(11, (((((88179 * x2 - 230945) * x2 + 218790) * x2 - 90090) * x2 + 15015) * x2 - 693) * x / 256);
+
+    case 10:
+      save(10, (((((46189 * x2 - 109395) * x2 + 90090) * x2 - 30030) * x2 + 3465) * x2 - 63) / 256);
+
+    case 9:
+      save(9, ((((12155 * x2 - 25740) * x2 + 18018) * x2 - 4620) * x2 + 315) * x / 128);
+
+    case 8:
+      save(8, ((((6435 * x2 - 12012) * x2 + 6930) * x2 - 1260) * x2 + 35) / 128);
+
+    case 7:
+      save(7, (((429 * x2 - 693) * x2 + 315) * x2 - 35) * x / 16);
+
+    case 6:
+      save(6, (((231 * x2 - 315) * x2 + 105) * x2 - 5) / 16);
+
+    case 5:
+      save(5, ((63 * x2 - 70) * x2 + 15) * x / 8);
+
+    case 4:
+      save(4, ((35 * x2 - 30) * x2 + 3) / 8);
+
+    case 3:
+      save(3, (5 * x2 - 3) * x / 2);
+
+    case 2:
+      save(2, (3 * x2 - 1) / 2);
+
+    case 1:
+      save(1, x);
+
+    case 0:
+      save(0, 1);
+  }
+
+  /* Evaluate any remaining polynomials.                                    */
+  /* The recurrence relation is:                                            */
+  /*       (2 * k - 1) * x * L_(k-1) - (k - 1) * L_(k-2)                    */
+  /* L_k = ---------------------------------------------                    */
+  /*                        k                                               */
+
+  for (k = MAX_DIRECT_CALCULATION + 1; k <= _orders[0]; ++k)
+    save(k, (((2 * k - 1) * x * load(k - 1))  -  ((k - 1) * load(k - 2)))
+            / (Real)k);
 }

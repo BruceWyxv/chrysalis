@@ -10,7 +10,7 @@
 #include <array>
 #include <vector>
 
-/// This class provides an interface for the basis set of a functional expansion
+/// Provides an interface for the basis set of a functional expansion
 template<std::size_t dimensions>
 class FunctionalSeriesInterface
 {
@@ -26,71 +26,97 @@ public:
   FunctionalSeriesInterface(FunctionalSeriesInterface const&) = delete;
   FunctionalSeriesInterface& operator=(FunctionalSeriesInterface const&) = delete;
 
-  /**
-   * Evaluates the functional series at #location, then returns the requested
-   * values which are linear mappings of a multi #dimensions function system
-   */
-  const std::vector<libMesh::Real> & operator()(std::array<libMesh::Real, dimensions> location) {return evaluate(location);};
-  const std::vector<libMesh::Real> & evaluate(std::array<libMesh::Real, dimensions> location);
+  /// Returns the evaluation at the given index
+  Real operator[](std::size_t index) {return _series[index];}
 
-  /// Returns the value of #_series at the given index
-  libMesh::Real operator[](std::size_t index) {return _series[index];};
+  /**
+   * Evaluates the orthonormalized functional series at location, then returns
+   * the requested values which are linear mappings of a multi dimensions
+   * function system
+   */
+  const std::vector<Real> & evaluateOrthonormal(std::array<Real, dimensions> location);
+  /**
+   * Evaluates the functional series at location, then returns the requested
+   * values which are linear mappings of a multi dimensions function system
+   */
+  const std::vector<Real> & evaluatePure(std::array<Real, dimensions> location);
+
+  /// Returns whether the current evaluation is orthonormalized
+  bool isOrthonormalized() const {return _is_orthonormalized;}
 
   /**
    * Returns the location of the cached values in the listed dimension
    * (default = 0)
    */
-  libMesh::Real & getLocation(unsigned int dimension = 0) {return _location[dimension];};
+  const Real & getLocation(unsigned int dimension = 0) const {return _location[dimension];};
 
   /// Returns the order of the listed dimension (default = 0)
-  unsigned int getOrder(unsigned int dimension = 0) {return _orders[dimension];};
+  unsigned int getOrder(unsigned int dimension = 0) const {return _orders[dimension];};
 
 protected:
-  /**
-   * Evaluates the functional series at #_location, then caches the results in
-   * #_series and #_expansion
-   */
-  virtual void evaluateConcreteAndStoreResults() = 0;
+  /// Evaluates the orthonormal functional series at #_location
+  virtual void orthonormal() = 0;
+  /// Evaluates the pure functional series at #_location
+  virtual void pure() = 0;
 
-  /// Loads a value from #_series
-  libMesh::Real load(std::size_t index) {return _series[index];};
+  /// Helper function to load a value from #_series
+  Real load(std::size_t index) const {return _series[index];};
 
-  /// Stores the value in #_series
-  void save(std::size_t index, libMesh::Real value) {_series[index] = value;};
+  /// Helper function to store a value in #_series
+  void save(std::size_t index, Real value) {_series[index] = value;};
 
   /// Stores the location of the evaluation
-  std::array<libMesh::Real, dimensions> _location;
+  std::array<Real, dimensions> _location;
 
   /// The polynomial coefficient orders
   const std::array<unsigned int, dimensions> _orders;
 
-  /// Stores the values of the series evaluation
-  std::vector<libMesh::Real> _series;
-
 private:
   /// Indicates if the cached values are still valid
   bool _is_cache_valid;
+
+  /// Indicates whether the cache evaluate is pure or orthonormalized
+  bool _is_orthonormalized;
+
+  /// Stores the values of the series evaluation
+  std::vector<Real> _series;
 };
 
 template<std::size_t dimensions>
 FunctionalSeriesInterface<dimensions>::FunctionalSeriesInterface(std::array<unsigned int, dimensions> orders, unsigned int number_of_coefficients)
   : _location({{}}),
     _orders(orders),
-    _series(number_of_coefficients, 0),
-    _is_cache_valid(false)
+    _is_cache_valid(false),
+    _series(number_of_coefficients, 0)
 {
   _series.shrink_to_fit();
 }
 
 template<std::size_t dimensions>
-const std::vector<libMesh::Real> &
-FunctionalSeriesInterface<dimensions>::evaluate(std::array<libMesh::Real, dimensions> location)
+const std::vector<Real> &
+FunctionalSeriesInterface<dimensions>::evaluateOrthonormal(std::array<Real, dimensions> location)
 {
-  if (!_is_cache_valid || _location != location)
+  if (!_is_cache_valid || !_is_orthonormalized || _location != location)
   {
     _location = location;
-    evaluateConcreteAndStoreResults();
+    orthonormal();
     _is_cache_valid = true;
+    _is_orthonormalized = true;
+  }
+
+  return _series;
+}
+
+template<std::size_t dimensions>
+const std::vector<Real> &
+FunctionalSeriesInterface<dimensions>::evaluatePure(std::array<Real, dimensions> location)
+{
+  if (!_is_cache_valid || _is_orthonormalized || _location != location)
+  {
+    _location = location;
+    pure();
+    _is_cache_valid = true;
+    _is_orthonormalized = false;
   }
 
   return _series;

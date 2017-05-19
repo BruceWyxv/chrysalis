@@ -4,6 +4,8 @@
 
 // MOOSE includes
 #include "MooseEnum.h"
+#include "MooseError.h"
+#include "MooseMesh.h"
 
 // libmesh includes
 #include "libmesh/quadrature.h"
@@ -37,9 +39,11 @@ validParams<FECoefficientsUserObject>()
   MooseEnum FunctionalExpansionTypes("Cartesian  Cylindrical", "Cartesian");
   params.addRequiredParam<MooseEnum>("functional", FunctionalExpansionTypes, "The type of functional expansion");
   params.addParam< std::vector<unsigned int> >("orders", "The functional order to use in each dimension");
-  params.addParam< std::vector<Real> >("boundaries", "The physical bounds of the functional expansion");
+  params.addParam< std::vector<Real> >("valid_range", "The physical bounds of the functional expansion");
 
   params.addParam<bool>("keep_history", false, "Keep the expansion coefficients from previous solves");
+
+  params.addParam<bool>("print_state", false, "Print the state of the zeroth instance each solve");
 
   return params;
 }
@@ -48,19 +52,24 @@ FECoefficientsUserObject::FECoefficientsUserObject(const InputParameters & param
   : ElementIntegralVariableUserObject(parameters),
     _functional_expansion_type(getParam<MooseEnum>("functional")),
     _keep_history(getParam<bool>("keep_history")),
-    _orders(getParam<std::vector<unsigned int> >("orders"))
+    _orders(getParam<std::vector<unsigned int> >("orders")),
+    _print_state(getParam<bool>("print_state"))
 {
   if (!_keep_history)
     _coefficient_history.resize(0);
 
   if (_functional_expansion_type == "Cartesian")
   {
+    mooseAssert(_orders.size() <= 3, "Too many orders! Cannot have a dimensionality > 3.");
+    
     auto x = _orders[0];
     auto y = _orders.size() > 1 ? _orders[1] : 0;
     auto z = _orders.size() > 2 ? _orders[2] : 0;
+
     _functional_expansion = new FunctionalExpansionSolidCartesianLegendre(x, y, z);
+    _functional_expansion->setDimensionality(_orders.size());
   }
-  _functional_expansion->setBounds(getParam< std::vector<Real> >("boundaries"));
+  _functional_expansion->setBounds(getParam< std::vector<Real> >("valid_range"));
 
   _coefficient_partials.resize(_functional_expansion->getNumberOfCoefficients());
 }
@@ -77,45 +86,43 @@ FECoefficientsUserObject::computeIntegral()
   * Otherwise, caching the values should not increase processing overhead but
   * will impact memory usage slightly.
   */
-  std::vector<unsigned int> locations_qp;
   std::vector<const Point *> new_locations;
   for (_qp = 0; _qp < _q_point.size(); ++_qp)
-  {
-    if (!_functional_expansion->isInBounds(&_q_point[_qp]))
-    {
-      _console << COLOR_RED << "Skipping point: " << _q_point[_qp] << COLOR_DEFAULT << std::endl;
-      continue;
-    }
-    else
-    {
-      _console << COLOR_BLUE << "Computing integral at point: " << _q_point[_qp] << COLOR_DEFAULT << std::endl;
-    }
-
-    locations_qp.push_back(_qp);
-    if (!_quadrature_monomials.count(&_q_point[_qp]))
+    if (!_quadrature_monomials.count(_q_point[_qp]))
       new_locations.push_back(&_q_point[_qp]);
-  }
 
-  if (locations_qp.size())
+  if (new_locations.size())
   {
-    if (new_locations.size())
-    {
-      auto monomial_evaluations = _functional_expansion->expand(new_locations);
-      for (unsigned int l = 0; l < new_locations.size(); ++l)
-        _quadrature_monomials.emplace(new_locations[l], monomial_evaluations[l]);
-    }
+    auto monomial_evaluations = _functional_expansion->expand(new_locations);
 
-    // Essentially the same as ElementIntegralUserObject, but with coefficients
-    for (unsigned int l = 0; l < locations_qp.size(); ++l)
-    {
-      _qp = locations_qp[l];
-
-      for (_c = 0; _c < _functional_expansion->getNumberOfCoefficients(); ++_c)
-        _coefficient_partials[_c] += _JxW[_qp] * _coord[_qp] * computeQpIntegral();
-    }
+    for (unsigned int l = 0; l < new_locations.size(); ++l)
+      _quadrature_monomials.emplace(*new_locations[l], monomial_evaluations[l]);
   }
 
-  // Return the zeroth partial sum, equivalent to the average value
+  std::vector<unsigned int> locations_qp;
+  for (_qp = 0; _qp < _q_point.size(); ++_qp)
+  if (!_functional_expansion->isInBounds(_q_point[_qp]))
+  {
+    _console << COLOR_RED << "Skipping point: " << _q_point[_qp] << COLOR_DEFAULT << std::endl;
+    continue;
+  }
+  else
+  {
+    locations_qp.push_back(_qp);
+  }
+
+  const Real weight = _current_elem_volume * locations_qp.size() / (Real)_q_point.size();
+  for (unsigned int l = 0; l < locations_qp.size(); ++l)
+  {
+    _qp = locations_qp[l];
+
+    for (_c = 0; _c < _functional_expansion->getNumberOfCoefficients(); ++_c)
+      _coefficient_partials[_c] += weight * computeQpIntegral();
+  }
+
+  _volume += weight;
+
+  // Return the average value
   return _coefficient_partials[0];
 }
 
@@ -126,7 +133,7 @@ FECoefficientsUserObject::computeQpIntegral()
    * Essentially the same as ElementIntegralVariableUserObject, but performed
    * on a coefficient basis using the pre-calculated monomials.
    */
-  return _quadrature_monomials[&_q_point[_qp]][_c] * ElementIntegralVariableUserObject::computeQpIntegral();
+  return _quadrature_monomials[_q_point[_qp]][_c] * ElementIntegralVariableUserObject::computeQpIntegral();
 }
 
 void
@@ -134,13 +141,21 @@ FECoefficientsUserObject::finalize()
 {
   // Sum the coefficient arrays over all processes
   _communicator.sum(_coefficient_partials);
+  _communicator.sum(_volume);
+
+  for (auto & coefficient : _coefficient_partials)
+    coefficient /= _volume;
   _integral_value = _coefficient_partials[0];
 
   if (_keep_history)
     _coefficient_history.push_back(_coefficient_partials);
 
-  _console << COLOR_YELLOW << " Calculated Coefficients!" << COLOR_DEFAULT << std::endl;
-  _console << COLOR_YELLOW << "     Zeroth Value: " << _integral_value << COLOR_DEFAULT << std::endl;
+  if (_print_state && (_current_elem->processor_id() == 0))
+  {
+    _functional_expansion->setCoefficients(_coefficient_partials);
+    _console << "Volume: " << _volume << std::endl;
+    _console << COLOR_YELLOW << *_functional_expansion << COLOR_DEFAULT << std::endl;
+  }
 }
 
 void
@@ -152,6 +167,14 @@ FECoefficientsUserObject::initialize()
   // Clear the partial sums
   for (auto & partial : _coefficient_partials)
     partial = 0;
+
+  _volume = 0;
+}
+
+void
+FECoefficientsUserObject::meshChanged()
+{
+  _quadrature_monomials.clear();
 }
 
 void
@@ -161,6 +184,8 @@ FECoefficientsUserObject::threadJoin(const UserObject & s)
 
   for (_c = 0; _c < _coefficient_partials.size(); ++_c)
     _coefficient_partials[_c] += sibling._coefficient_partials[_c];
+
+  _volume += sibling._volume;
 }
 
 FECoefficientsUserObject::~FECoefficientsUserObject()

@@ -19,11 +19,10 @@ public:
   virtual ~FunctionalSeriesLegendre() = default;
 
 protected:
-  /**
-   * Evaluates the Legendre polynomial series, then caches everything in
-   * #_previous_location, #_previous_series, and #_previous_expansion
-   */
-  void evaluateConcreteAndStoreResults() final;
+  /// Evaluates an orthonormalized Legendre polynomial series at _location
+  void orthonormal() final;
+  /// Evaluates a pure Legendre polynomial series at _location
+  void pure() final;
 };
 
 #endif // FUNCTIONALEXPANSIONLEGENDRE_H

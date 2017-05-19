@@ -23,18 +23,16 @@ public:
 
   virtual ~FunctionalExpansionSolidCartesianLegendre() = default;
 
-  virtual const std::vector<libMesh::Real> & expand(libMesh::Point location) override;
-  virtual std::vector< std::vector<libMesh::Real> > expand(std::vector<const libMesh::Point *> & locations) override;
+  virtual const std::vector<Real> & expand(const Point & location) override;
+  virtual std::vector< std::vector<Real> > expand(const std::vector<const Point *> & locations) override;
 
-  virtual bool isInBounds(const libMesh::Point * point) override;
-
-  virtual libMesh::Real sample(libMesh::Point location) override;
-  virtual std::vector<libMesh::Real> sample(std::vector<const libMesh::Point *> & locations) override;
-
-  virtual void setBounds(const std::vector<libMesh::Real> & bounds) override;
+  virtual Real sample(const Point & location) override;
+  virtual std::vector<Real> sample(std::vector<const Point *> & locations) override;
 
 protected:
-  void normalizeLocation(libMesh::Point & location);
+  std::string getDescription() const override;
+  std::string getFormattedCoefficients() const override;
+  std::string getName() const override;
 
 private:
   /// Evaluators for the Legendre polynomials

@@ -1,13 +1,13 @@
 [Mesh]
   type = GeneratedMesh
   dim = 3
-  nx = 4
-  ny = 40
-  nz = 4
+  nx = 30
+  ny = 2
+  nz = 2
   xmin = 0
-  xmax = 2
+  xmax = 10
   ymin = 0
-  ymax = 10
+  ymax = 1
   zmin = 0
   zmax = 1
 []
@@ -21,14 +21,14 @@
 
 [ICs]
   [./T_IC]
-    type = ConstantIC
+    type = FunctionIC
     variable = T
-    value = 300
+    function = '300+20*x'
   [../]
 []
 
 [Kernels]
-  active = 'HeatTdot HeatSourceTransient'
+  active = 'HeatDiff'
   [./HeatDiff]
     type = HeatConduction
     variable = T
@@ -50,18 +50,18 @@
 []
 
 [BCs]
-  active = 'bottom top'
-  [./bottom]
+  active = 'left right'
+  [./left]
     type = DirichletBC
     variable = T
-    boundary = bottom
+    boundary = left
     value = 300
   [../]
-  [./top]
+  [./right]
     type = FunctionDirichletBC
     variable = T
-    boundary = top
-    function = '300+200*(t/2000)^0.25'
+    boundary = right
+    function = '300+200*exp(-0.004*t)'
   [../]
 []
 
@@ -90,8 +90,8 @@
   type = Transient
   solve_type = 'PJFNK'
   #scheme = bdf2
-  dt = 2
-  num_steps = 1
+  dt = 5
+  num_steps = 2
   #petsc_options_iname = '-pc_type -pc_hypre_type'
   #petsc_options_value = 'hypre boomeramg'
 []
@@ -100,10 +100,13 @@
   [./functional_expansion]
     type = FECoefficientsUserObject
     functional = Cartesian
-    orders = '2 2 2'
-    boundaries = '0 2 0 10 0 1'
+    orders = '4'
+    valid_range = '0 10'
+    orders = '4 1 1'
+    valid_range = '0 10 0 1 0 1'
     variable = T
-    execute_on = timestep_end
+    execute_on = timestep_begin
+    print_state = true
   [../]
 []
 

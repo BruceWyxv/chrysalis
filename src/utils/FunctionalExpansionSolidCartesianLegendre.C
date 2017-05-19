@@ -1,11 +1,13 @@
 #include "FunctionalExpansionSolidCartesianLegendre.h"
 
+#include <iomanip>
 #include <unordered_map>
 
 FunctionalExpansionSolidCartesianLegendre::FunctionalExpansionSolidCartesianLegendre(unsigned int order_x,
                                                                                      unsigned int order_y,
                                                                                      unsigned int order_z)
-  : FunctionalExpansionInterface((order_x + 1) * (order_y + 1) * (order_z + 1)),
+  : FunctionalExpansionInterface((order_x + 1) * (order_y + 1) * (order_z + 1),
+                                 {-1, 1, -1, 1, -1, 1}),
     _x(order_x),
     _y(order_y),
     _z(order_z)
@@ -25,16 +27,25 @@ FunctionalExpansionSolidCartesianLegendre::FunctionalExpansionSolidCartesianLege
   // Nothing here, everything is performed by the delegate constructor
 }
 
-const std::vector<libMesh::Real> &
-FunctionalExpansionSolidCartesianLegendre::expand(libMesh::Point location)
+const std::vector<Real> &
+FunctionalExpansionSolidCartesianLegendre::expand(const Point & location)
 {
   if (_location != location)
   {
     // Evaluate the dimensional polynomials at the defined locaton
-    normalizeLocation(location);
-    _x({{location(0)}});
-    _y({{location(1)}});
-    _z({{location(2)}});
+    NormalizablePoint normalized(_bounds, _range, location);
+
+    switch (_dimensionality)
+    {
+      case 3:
+        _z.evaluateOrthonormal({{normalized(2)}});
+
+      case 2:
+        _y.evaluateOrthonormal({{normalized(1)}});
+
+      default:
+        _x.evaluateOrthonormal({{normalized(0)}});
+    }
 
     _location = location;
     _is_cache_valid = false;
@@ -42,15 +53,43 @@ FunctionalExpansionSolidCartesianLegendre::expand(libMesh::Point location)
 
   if (!_is_cache_valid)
   {
-    // Loop over the dimensions and evaluate
-    std::size_t index = 0;
-    for (std::size_t x = 0; x <= _x.getOrder(); ++x)
-      for (std::size_t y = 0; y <= _y.getOrder(); ++y)
-        for (std::size_t z = 0; z <= _z.getOrder(); ++z)
-        {
-          _expansion[index] = _x[x] * _y[y] * _z[z] * _coefficients[index];
-          ++index;
-        }
+    switch (_dimensionality)
+    {
+      case 3:
+      {
+        // Loop over the dimensions and evaluate
+        std::size_t index = 0;
+        for (std::size_t x = 0; x <= _x.getOrder(); ++x)
+          for (std::size_t y = 0; y <= _y.getOrder(); ++y)
+            for (std::size_t z = 0; z <= _z.getOrder(); ++z)
+            {
+              _expansion[index] = _x[x] * _y[y] * _z[z];
+              ++index;
+            }
+      }
+      break;
+
+      case 2:
+      {
+        // Loop over the dimensions and evaluate
+        std::size_t index = 0;
+        for (std::size_t x = 0; x <= _x.getOrder(); ++x)
+          for (std::size_t y = 0; y <= _y.getOrder(); ++y)
+          {
+            _expansion[index] = _x[x] * _y[y];
+            ++index;
+          }
+      }
+      break;
+
+      default:
+      {
+        // Loop over the dimensions and evaluate
+        for (std::size_t x = 0; x <= _x.getOrder(); ++x)
+          _expansion[x] = _x[x];
+      }
+      break;
+    }
 
     _is_cache_valid = true;
   }
@@ -58,52 +97,86 @@ FunctionalExpansionSolidCartesianLegendre::expand(libMesh::Point location)
   return _expansion;
 }
 
-std::vector< std::vector<libMesh::Real> >
-FunctionalExpansionSolidCartesianLegendre::expand(std::vector<const libMesh::Point *> & locations)
+std::vector< std::vector<Real> >
+FunctionalExpansionSolidCartesianLegendre::expand(const std::vector<const Point *> & locations)
 {
-  std::vector< std::vector<libMesh::Real> > expansions;
+  std::vector< std::vector<Real> > expansions;
   expansions.reserve(locations.size());
 
-  std::unordered_map< libMesh::Real, std::vector<libMesh::Real> > x_evaluations;
-  std::unordered_map< libMesh::Real, std::vector<libMesh::Real> > y_evaluations;
-  std::unordered_map< libMesh::Real, std::vector<libMesh::Real> > z_evaluations;
+  std::unordered_map< Real, std::vector<Real> > x_evaluations;
+  std::unordered_map< Real, std::vector<Real> > y_evaluations;
+  std::unordered_map< Real, std::vector<Real> > z_evaluations;
 
   /*
    * Perform an first loop to precompute all the needed expansions. This is
    * advantageous if multiple any coordinates in any dimension are repeated, and
    * adds very little overhead in any other situation.
    */
-  libMesh::Point normalized;
-  for (auto & location : locations)
+  for (auto location : locations)
   {
-    normalized = *location;
-    normalizeLocation(normalized);
+    NormalizablePoint normalized(_bounds, _range, *location);
     if (x_evaluations.count((*location)(0)) == 0)
-      x_evaluations.emplace((*location)(0), _x({{normalized(0)}}));
+      x_evaluations.emplace((*location)(0), _x.evaluateOrthonormal({{normalized(0)}}));
 
-    if (y_evaluations.count((*location)(1)) == 0)
-      y_evaluations.emplace((*location)(1), _y({{normalized(1)}}));
+    if (_dimensionality > 1 && y_evaluations.count((*location)(1)) == 0)
+      y_evaluations.emplace((*location)(1), _y.evaluateOrthonormal({{normalized(1)}}));
 
-    if (z_evaluations.count((*location)(2)) == 0)
-      z_evaluations.emplace((*location)(2), _z({{normalized(2)}}));
+    if (_dimensionality > 2 && z_evaluations.count((*location)(2)) == 0)
+      z_evaluations.emplace((*location)(2), _z.evaluateOrthonormal({{normalized(2)}}));
   }
 
   // Perform the actual expansions in the second loop
-  std::vector<libMesh::Real> expansion(_number_of_coefficients, 0);
-  for (auto & location : locations)
+  std::vector<Real> expansion(_number_of_coefficients, 0);
+  for (unsigned int l = 0; l < locations.size(); ++l)
   {
-    auto & x_series = x_evaluations.at((*location)(0));
-    auto & y_series = y_evaluations.at((*location)(1));
-    auto & z_series = z_evaluations.at((*location)(2));
+    const Point & location = *locations[l];
 
-    std::size_t index = 0;
-    for (std::size_t x = 0; x < x_series.size(); ++x)
-      for (std::size_t y = 0; y < y_series.size(); ++y)
-        for (std::size_t z = 0; z < z_series.size(); ++z)
-        {
-          expansion[index] = x_series[x] * y_series[y] * z_series[z] * _coefficients[index];
-          ++index;
-        }
+    switch (_dimensionality)
+    {
+      case 3:
+      {
+        const std::vector<Real> & x_series = x_evaluations.at(location(0));
+        const std::vector<Real> & y_series = y_evaluations.at(location(1));
+        const std::vector<Real> & z_series = z_evaluations.at(location(2));
+
+        // Loop over the dimensions and evaluate
+        std::size_t index = 0;
+        for (std::size_t x = 0; x <= _x.getOrder(); ++x)
+          for (std::size_t y = 0; y <= _y.getOrder(); ++y)
+            for (std::size_t z = 0; z <= _z.getOrder(); ++z)
+            {
+              expansion[index] = x_series[x] * y_series[y] * z_series[z];
+              ++index;
+            }
+      }
+      break;
+
+      case 2:
+      {
+        const std::vector<Real> & x_series = x_evaluations.at(location(0));
+        const std::vector<Real> & y_series = y_evaluations.at(location(1));
+
+        // Loop over the dimensions and evaluate
+        std::size_t index = 0;
+        for (std::size_t x = 0; x <= _x.getOrder(); ++x)
+          for (std::size_t y = 0; y <= _y.getOrder(); ++y)
+          {
+            expansion[index] = x_series[x] * y_series[y];
+            ++index;
+          }
+      }
+      break;
+
+      default:
+      {
+        const std::vector<Real> & x_series = x_evaluations.at(location(0));
+
+        // Loop over the dimensions and evaluate
+        for (std::size_t x = 0; x <= _x.getOrder(); ++x)
+          expansion[x] = x_series[x];
+      }
+      break;
+    }
 
     expansions.push_back(expansion);
   }
@@ -111,61 +184,182 @@ FunctionalExpansionSolidCartesianLegendre::expand(std::vector<const libMesh::Poi
   return expansions;
 }
 
-bool
-FunctionalExpansionSolidCartesianLegendre::isInBounds(const libMesh::Point * point)
+std::string
+FunctionalExpansionSolidCartesianLegendre::getDescription() const
 {
-  if (   _bounds[CartesianBoundaries::X_MIN] < (*point)(0)
-      &&                                       (*point)(0) < _bounds[CartesianBoundaries::X_MAX]
-      && _bounds[CartesianBoundaries::Y_MIN] < (*point)(1)
-      &&                                       (*point)(1) < _bounds[CartesianBoundaries::Y_MAX]
-      && _bounds[CartesianBoundaries::Z_MIN] < (*point)(2)
-      &&                                       (*point)(2) < _bounds[CartesianBoundaries::Z_MAX])
-    return true;
-
-  return false;
+  return "A 3D function expansion for solid geometries in a Cartesian\n"
+         "    coordinate system using three Legendre polynomial series,\n"
+         "    one for each dimension.\n";
 }
 
-void
-FunctionalExpansionSolidCartesianLegendre::normalizeLocation(libMesh::Point & location)
+std::string
+FunctionalExpansionSolidCartesianLegendre::getFormattedCoefficients() const
 {
-  location(0) = (_bounds[CartesianBoundaries::X_MAX] - location(0))
-                / (_bounds[CartesianBoundaries::X_MAX] - _bounds[CartesianBoundaries::X_MIN])
-                * 2 - 1;
-  location(1) = (_bounds[CartesianBoundaries::Y_MAX] - location(1))
-                / (_bounds[CartesianBoundaries::Y_MAX] - _bounds[CartesianBoundaries::Y_MIN])
-                * 2 - 1;
-  location(2) = (_bounds[CartesianBoundaries::Z_MAX] - location(2))
-                / (_bounds[CartesianBoundaries::Z_MAX] - _bounds[CartesianBoundaries::Z_MIN])
-                * 2 - 1;
+  std::ostringstream formatted;
+
+  formatted                << "-------------- Coefficients -----------------\n";
+  formatted                << "             == Sub-indices ==\n"
+                           << " == Index ==     x   y   z     === Value ===\n";
+
+  std::size_t index = 0;
+  for (std::size_t x = 0; x <= _x.getOrder(); ++x)
+    for (std::size_t y = 0; y <= _y.getOrder(); ++y)
+      for (std::size_t z = 0; z <= _z.getOrder(); ++z)
+      {
+        formatted          << "     " << std::setw(2) << index
+                           <<        "        " << std::setw(3) << x
+                           <<                   " " << std::setw(3) << y
+                           <<                       " " << std::setw(3) << z
+                           <<                           "     " << std::setw(12) << _coefficients[index]
+                           << "\n";
+        ++index;
+      }
+
+  formatted                << "---------------------------------------------\n";
+  return formatted.str();
 }
 
-libMesh::Real
-FunctionalExpansionSolidCartesianLegendre::sample(libMesh::Point location)
+std::string
+FunctionalExpansionSolidCartesianLegendre::getName() const
 {
-  libMesh::Real sample = 0.0;
-  expand(location);
+  return "FunctionalExpansionSolidCartesianLegendre";
+}
 
-  for (auto & monomial : _expansion)
-    sample += monomial;
+Real
+FunctionalExpansionSolidCartesianLegendre::sample(const Point & location)
+{
+  Real sample = 0.0;
+  NormalizablePoint normalized(_bounds, _range, location);
+
+  switch (_dimensionality)
+  {
+    case 3:
+    {
+      _x.evaluatePure({{normalized(0)}});
+      _y.evaluatePure({{normalized(1)}});
+      _z.evaluatePure({{normalized(2)}});
+
+      // Loop over the dimensions and evaluate
+      std::size_t index = 0;
+      for (std::size_t x = 0; x <= _x.getOrder(); ++x)
+        for (std::size_t y = 0; y <= _y.getOrder(); ++y)
+          for (std::size_t z = 0; z <= _z.getOrder(); ++z)
+          {
+            sample += _x[x] * _y[y] * _z[z] * _coefficients[index];
+            ++index;
+          }
+    }
+    break;
+
+    case 2:
+    {
+      _x.evaluatePure({{normalized(0)}});
+      _y.evaluatePure({{normalized(1)}});
+
+      // Loop over the dimensions and evaluate
+      std::size_t index = 0;
+      for (std::size_t x = 0; x <= _x.getOrder(); ++x)
+        for (std::size_t y = 0; y <= _y.getOrder(); ++y)
+        {
+          sample += _x[x] * _y[y] * _coefficients[index];
+          ++index;
+        }
+    }
+    break;
+
+    default:
+    {
+      _x.evaluatePure({{normalized(0)}});
+
+      // Loop over the dimensions and evaluate
+      for (std::size_t x = 0; x <= _x.getOrder(); ++x)
+        sample += _x[x] * _coefficients[x];
+    }
+    break;
+  }
 
   return sample;
 }
 
-std::vector<libMesh::Real>
-FunctionalExpansionSolidCartesianLegendre::sample(std::vector<const libMesh::Point *> & locations)
+std::vector<Real>
+FunctionalExpansionSolidCartesianLegendre::sample(std::vector<const Point *> & locations)
 {
-  std::vector<libMesh::Real> samples(locations.size(), 0);
-  auto expansions = expand(locations);
+  std::vector<Real> samples(locations.size(), 0);
 
-  for (std::size_t index = 0; index < locations.size(); ++index)
-    for (auto & monomial : expansions[index])
-      samples[index] += monomial;
+  std::unordered_map< Real, std::vector<Real> > x_evaluations;
+  std::unordered_map< Real, std::vector<Real> > y_evaluations;
+  std::unordered_map< Real, std::vector<Real> > z_evaluations;
+
+  /*
+   * Perform an first loop to precompute all the needed expansions. This is
+   * advantageous if multiple any coordinates in any dimension are repeated, and
+   * adds very little overhead in any other situation.
+   */
+  for (auto location : locations)
+  {
+    NormalizablePoint normalized(_bounds, _range, *location);
+    if (x_evaluations.count((*location)(0)) == 0)
+      x_evaluations.emplace((*location)(0), _x.evaluatePure({{normalized(0)}}));
+
+    if (_dimensionality > 1 && y_evaluations.count((*location)(1)) == 0)
+      y_evaluations.emplace((*location)(1), _y.evaluatePure({{normalized(1)}}));
+
+    if (_dimensionality > 2 && z_evaluations.count((*location)(2)) == 0)
+      z_evaluations.emplace((*location)(2), _z.evaluatePure({{normalized(2)}}));
+  }
+
+  // Perform the actual sampling in the second loop
+  for (unsigned int l = 0; l < locations.size(); ++l)
+  {
+    const Point & location = *locations[l];
+
+    switch (_dimensionality)
+    {
+      case 3:
+      {
+        const std::vector<Real> & x_series = x_evaluations.at(location(0));
+        const std::vector<Real> & y_series = y_evaluations.at(location(1));
+        const std::vector<Real> & z_series = z_evaluations.at(location(2));
+
+        // Loop over the dimensions and evaluate
+        std::size_t index = 0;
+        for (std::size_t x = 0; x <= _x.getOrder(); ++x)
+          for (std::size_t y = 0; y <= _y.getOrder(); ++y)
+            for (std::size_t z = 0; z <= _z.getOrder(); ++z)
+            {
+              samples[l] += x_series[x] * y_series[y] * z_series[z] * _coefficients[index];
+              ++index;
+            }
+      }
+      break;
+
+      case 2:
+      {
+        const std::vector<Real> & x_series = x_evaluations.at(location(0));
+        const std::vector<Real> & y_series = y_evaluations.at(location(1));
+
+        // Loop over the dimensions and evaluate
+        std::size_t index = 0;
+        for (std::size_t x = 0; x <= _x.getOrder(); ++x)
+          for (std::size_t y = 0; y <= _y.getOrder(); ++y)
+          {
+            samples[l] += x_series[x] * y_series[y] * _coefficients[index];
+            ++index;
+          }
+      }
+      break;
+
+      default:
+      {
+        const std::vector<Real> & x_series = x_evaluations.at(location(0));
+
+        // Loop over the dimensions and evaluate
+        for (std::size_t x = 0; x <= _x.getOrder(); ++x)
+          samples[l] += x_series[x] * _coefficients[x];
+      }
+      break;
+    }
+  }
 
   return samples;
-}
-
-void
-FunctionalExpansionSolidCartesianLegendre::setBounds(const std::vector<libMesh::Real> & bounds)
-{
-  _bounds = bounds;
 }

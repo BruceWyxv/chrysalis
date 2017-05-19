@@ -31,13 +31,16 @@ public:
   /// Virtual destructor
   virtual ~FECoefficientsUserObject();
 
+  // ElementIntegralUserObject overrides
+  virtual Real getValue() override {return _integral_value;}
+
+  // MeshChangedInterface overrides
+  virtual void meshChanged() override;
+
   // UserObject overrides
   virtual void finalize() override;
   virtual void initialize() override;
   virtual void threadJoin(const UserObject & sibling) override;
-
-  // ElementIntegralUserObject overrides
-  virtual Real getValue() override {return _integral_value;}
 
   /// Return a reference to the underlying functional expansion
   const FunctionalExpansionInterface & getFunctionalExpansion() const {return *_functional_expansion;}
@@ -72,8 +75,14 @@ protected:
   /// Pointer to the underlying functional expansion
   FunctionalExpansionInterface * _functional_expansion;
 
+  /// Flag to prints the state of the zeroth instance in finalize()
+  const bool _print_state;
+
   /// Cached values of the monomial calculations at each point
-  std::unordered_map< const Point *, std::vector<Real> > _quadrature_monomials;
+  std::map< const Point, std::vector<Real> > _quadrature_monomials;
+
+  /// volume
+  Real _volume;
 };
 
 #endif // FECOEFFICIENTSUSEROBJECT_H
