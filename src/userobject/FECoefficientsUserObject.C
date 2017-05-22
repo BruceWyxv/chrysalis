@@ -38,8 +38,8 @@ validParams<FECoefficientsUserObject>()
    */
   MooseEnum FunctionalExpansionTypes("Cartesian  Cylindrical", "Cartesian");
   params.addRequiredParam<MooseEnum>("functional", FunctionalExpansionTypes, "The type of functional expansion");
-  params.addParam< std::vector<unsigned int> >("orders", "The functional order to use in each dimension");
-  params.addParam< std::vector<Real> >("valid_range", "The physical bounds of the functional expansion");
+  params.addRequiredParam< std::vector<unsigned int> >("orders", "The functional order to use in each dimension");
+  params.addRequiredParam< std::vector<Real> >("valid_range", "The physical bounds of the functional expansion");
 
   params.addParam<bool>("keep_history", false, "Keep the expansion coefficients from previous solves");
 
@@ -61,7 +61,7 @@ FECoefficientsUserObject::FECoefficientsUserObject(const InputParameters & param
   if (_functional_expansion_type == "Cartesian")
   {
     mooseAssert(_orders.size() <= 3, "Too many orders! Cannot have a dimensionality > 3.");
-    
+
     auto x = _orders[0];
     auto y = _orders.size() > 1 ? _orders[1] : 0;
     auto z = _orders.size() > 2 ? _orders[2] : 0;
@@ -101,15 +101,10 @@ FECoefficientsUserObject::computeIntegral()
 
   std::vector<unsigned int> locations_qp;
   for (_qp = 0; _qp < _q_point.size(); ++_qp)
-  if (!_functional_expansion->isInBounds(_q_point[_qp]))
-  {
-    _console << COLOR_RED << "Skipping point: " << _q_point[_qp] << COLOR_DEFAULT << std::endl;
-    continue;
-  }
-  else
-  {
-    locations_qp.push_back(_qp);
-  }
+    if (!_functional_expansion->isInBounds(_q_point[_qp]))
+      continue;
+    else
+      locations_qp.push_back(_qp);
 
   const Real weight = _current_elem_volume * locations_qp.size() / (Real)_q_point.size();
   for (unsigned int l = 0; l < locations_qp.size(); ++l)
@@ -145,6 +140,7 @@ FECoefficientsUserObject::finalize()
 
   for (auto & coefficient : _coefficient_partials)
     coefficient /= _volume;
+  
   _integral_value = _coefficient_partials[0];
 
   if (_keep_history)
@@ -153,7 +149,6 @@ FECoefficientsUserObject::finalize()
   if (_print_state && (_current_elem->processor_id() == 0))
   {
     _functional_expansion->setCoefficients(_coefficient_partials);
-    _console << "Volume: " << _volume << std::endl;
     _console << COLOR_YELLOW << *_functional_expansion << COLOR_DEFAULT << std::endl;
   }
 }
