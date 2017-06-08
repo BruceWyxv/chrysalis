@@ -34,12 +34,10 @@ public:
   // ElementIntegralUserObject overrides
   virtual Real getValue() override {return _integral_value;}
 
-  // MeshChangedInterface overrides
-  virtual void meshChanged() override;
-
   // UserObject overrides
   virtual void finalize() override;
   virtual void initialize() override;
+  virtual Real spatialValue(const Point & location) const override;
   virtual void threadJoin(const UserObject & sibling) override;
 
   /// Return a reference to the underlying functional expansion

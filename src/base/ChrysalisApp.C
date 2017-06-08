@@ -1,6 +1,9 @@
 #include "ChrysalisApp.h"
 
+#include "DopplerHeat.h"
+#include "DopplerHeatAux.h"
 #include "FECoefficientsUserObject.h"
+#include "FEToAuxVariable.h"
 
 // MOOSE includes
 #include "Moose.h"
@@ -60,6 +63,9 @@ extern "C" void ChrysalisApp__registerObjects(Factory & factory) { ChrysalisApp:
 void
 ChrysalisApp::registerObjects(Factory & factory)
 {
+  registerKernel(DopplerHeat);
+  registerAuxKernel(DopplerHeatAux);
+  registerAuxKernel(FEToAuxVariable);
   registerUserObject(FECoefficientsUserObject);
 }
 

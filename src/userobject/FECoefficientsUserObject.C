@@ -88,8 +88,7 @@ FECoefficientsUserObject::computeIntegral()
   */
   std::vector<const Point *> new_locations;
   for (_qp = 0; _qp < _q_point.size(); ++_qp)
-    if (!_quadrature_monomials.count(_q_point[_qp]))
-      new_locations.push_back(&_q_point[_qp]);
+    new_locations.push_back(&_q_point[_qp]);
 
   if (new_locations.size())
   {
@@ -116,6 +115,7 @@ FECoefficientsUserObject::computeIntegral()
   }
 
   _volume += weight;
+  _quadrature_monomials.clear();
 
   // Return the average value
   return _coefficient_partials[0];
@@ -140,15 +140,15 @@ FECoefficientsUserObject::finalize()
 
   for (auto & coefficient : _coefficient_partials)
     coefficient /= _volume;
-  
+
   _integral_value = _coefficient_partials[0];
+  _functional_expansion->setCoefficients(_coefficient_partials);
 
   if (_keep_history)
     _coefficient_history.push_back(_coefficient_partials);
 
   if (_print_state && (_current_elem->processor_id() == 0))
   {
-    _functional_expansion->setCoefficients(_coefficient_partials);
     _console << COLOR_YELLOW << *_functional_expansion << COLOR_DEFAULT << std::endl;
   }
 }
@@ -166,10 +166,13 @@ FECoefficientsUserObject::initialize()
   _volume = 0;
 }
 
-void
-FECoefficientsUserObject::meshChanged()
+Real
+FECoefficientsUserObject::spatialValue(const Point & location) const
 {
-  _quadrature_monomials.clear();
+  if (!_functional_expansion->isInBounds(location))
+    return 0.0;
+
+  return _functional_expansion->sample(location);
 }
 
 void
