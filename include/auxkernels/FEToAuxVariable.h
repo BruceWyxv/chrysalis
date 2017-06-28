@@ -23,6 +23,8 @@ protected:
   virtual Real computeValue() override;
 
   const FECoefficientsUserObject & _fe_evaluator;
+
+  const bool _print_evaluations;
 };
 
 #endif //FETOAUXVARIABLE_H

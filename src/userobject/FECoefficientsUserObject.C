@@ -3,9 +3,11 @@
 #include "FunctionalExpansionSolidCartesianLegendre.h"
 
 // MOOSE includes
+#include "AuxiliarySystem.h"
 #include "MooseEnum.h"
 #include "MooseError.h"
 #include "MooseMesh.h"
+#include "MooseVariable.h"
 
 // libmesh includes
 #include "libmesh/quadrature.h"
@@ -53,15 +55,22 @@ FECoefficientsUserObject::FECoefficientsUserObject(const InputParameters & param
     _functional_expansion_type(getParam<MooseEnum>("functional")),
     _keep_history(getParam<bool>("keep_history")),
     _orders(getParam<std::vector<unsigned int> >("orders")),
+    _is_aux(_variable->kind() == Moose::VAR_AUXILIARY),
+    _aux_scale(_is_aux ? calculateAuxScale(_orders.size(), _variable) : 1),
     _print_state(getParam<bool>("print_state"))
 {
   if (!_keep_history)
     _coefficient_history.resize(0);
 
+  if (_mesh.dimension() != _orders.size())
+    mooseError("FECoefficientsUserObject:\n"
+               "The number of requested FE orders does not match the mesh dimensionality!");
+  else if (_orders.size() > 3)
+    mooseError("FECoefficientsUserObject:\n"
+               "Too many orders! Cannot have a dimensionality > 3.");
+
   if (_functional_expansion_type == "Cartesian")
   {
-    mooseAssert(_orders.size() <= 3, "Too many orders! Cannot have a dimensionality > 3.");
-
     auto x = _orders[0];
     auto y = _orders.size() > 1 ? _orders[1] : 0;
     auto z = _orders.size() > 2 ? _orders[2] : 0;
@@ -69,9 +78,35 @@ FECoefficientsUserObject::FECoefficientsUserObject(const InputParameters & param
     _functional_expansion = new FunctionalExpansionSolidCartesianLegendre(x, y, z);
     _functional_expansion->setDimensionality(_orders.size());
   }
-  _functional_expansion->setBounds(getParam< std::vector<Real> >("valid_range"));
+
+  std::vector<Real> valid_range = getParam< std::vector<Real> >("valid_range");
+  if (valid_range.size() != _orders.size() * 2)
+    mooseError("FECoefficientsUserObject:\n"
+               "Mismatch between the problem dimensionality and the specified valid range for the FE.\n"
+               "Both a minimum and maximum value must be provided for each dimension.");
+
+  _functional_expansion->setBounds(valid_range);
 
   _coefficient_partials.resize(_functional_expansion->getNumberOfCoefficients());
+}
+
+unsigned int
+FECoefficientsUserObject::calculateAuxScale(std::size_t dimensionality, const MooseVariable * /* variable */)
+{
+  // TODO: may need to change the hard-coded values depending on the underlying
+  //       element shape of _variable
+  switch (dimensionality)
+  {
+    case 3:
+      return 8;
+
+    case 2:
+      return 4;
+
+    case 1:
+    default:
+      return 2;
+  }
 }
 
 Real
@@ -111,7 +146,10 @@ FECoefficientsUserObject::computeIntegral()
     _qp = locations_qp[l];
 
     for (_c = 0; _c < _functional_expansion->getNumberOfCoefficients(); ++_c)
-      _coefficient_partials[_c] += weight * computeQpIntegral();
+      if (_aux_scale)
+        _coefficient_partials[_c] += weight * _aux_scale * computeQpIntegral();
+      else
+        _coefficient_partials[_c] += weight * computeQpIntegral();
   }
 
   _volume += weight;

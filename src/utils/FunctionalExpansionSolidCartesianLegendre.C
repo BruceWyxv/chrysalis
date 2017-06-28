@@ -187,7 +187,7 @@ FunctionalExpansionSolidCartesianLegendre::expand(const std::vector<const Point 
 std::string
 FunctionalExpansionSolidCartesianLegendre::getDescription() const
 {
-  return "A 3D function expansion for solid geometries in a Cartesian\n"
+  return "A 3D functional expansion for solid geometries in a Cartesian\n"
          "    coordinate system using three Legendre polynomial series,\n"
          "    one for each dimension.\n";
 }

@@ -61,6 +61,9 @@ protected:
   virtual Real computeIntegral() override;
   virtual Real computeQpIntegral() override;
 
+  /// Static function to compute the value for _aux_scale at class construction
+  static unsigned int calculateAuxScale(std::size_t dimensionality, const MooseVariable * variable);
+
   /// Index of the coefficient currently being calculated
   unsigned int _c;
 
@@ -73,13 +76,27 @@ protected:
   /// Pointer to the underlying functional expansion
   FunctionalExpansionInterface * _functional_expansion;
 
+  /**
+   * Flag for if the variable is an aux variable or nonlinear variable. This is
+   * important because Elemental Auxiliary variables only have one
+   * representative quadrature point, while Nonlinear variables have more
+   * depending on the problem dimensionality and Gaussian quadrature scheme.
+   */
+  const bool _is_aux;
+
+  /**
+   * The value to scale the integral by when evaluating over an Auxilary
+   * Variable, only used if _is_aux is true.
+   */
+  const unsigned int _aux_scale;
+
   /// Flag to prints the state of the zeroth instance in finalize()
   const bool _print_state;
 
   /// Cached values of the monomial calculations at each point
   std::map< const Point, std::vector<Real> > _quadrature_monomials;
 
-  /// volume
+  /// Volume
   Real _volume;
 };
 

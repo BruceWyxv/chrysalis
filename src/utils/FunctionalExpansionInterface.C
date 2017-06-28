@@ -17,7 +17,9 @@ FunctionalExpansionInterface::FunctionalExpansionInterface(unsigned int number_o
   _coefficients.shrink_to_fit();
 
   for (unsigned int i = 0; i < _range.size(); i += 2)
-    mooseAssert(_range[i] < range[i + 1], "Cannot have a minimum value that is less than a maximum value for a normalized range");
+    if (_range[i] >= range[i + 1])
+      mooseError("FunctionalExpansionInterface:\n"
+                 "Cannot have a minimum value that is less than a maximum value for a normalized range");
 }
 
 std::string
@@ -42,7 +44,9 @@ FunctionalExpansionInterface::isInBounds(const Point & point)
 void
 FunctionalExpansionInterface::setBounds(const std::vector<Real> & bounds)
 {
-  mooseAssert(bounds.size() == _range.size(), "Mismatch size in bounds assignment");
+  if (bounds.size() != _dimensionality * 2)
+    mooseError("FunctionalExpansionInterface:\n"
+               "Mismatch size in bounds assignment");
 
   _bounds = bounds;
 }
@@ -50,7 +54,9 @@ FunctionalExpansionInterface::setBounds(const std::vector<Real> & bounds)
 void
 FunctionalExpansionInterface::setBounds(const std::vector<Real> && bounds)
 {
-  mooseAssert(bounds.size() == _range.size(), "Mismatch size in bounds assignment");
+  if (bounds.size() != _dimensionality * 2)
+    mooseError("FunctionalExpansionInterface:\n"
+               "Mismatch size in bounds assignment");
 
   _bounds = bounds;
 }
@@ -58,7 +64,9 @@ FunctionalExpansionInterface::setBounds(const std::vector<Real> && bounds)
 void
 FunctionalExpansionInterface::setCoefficients(const std::vector<Real> && coefficients, bool orthonormalized)
 {
-  mooseAssert(_coefficients.size() == coefficients.size(), "Mismatched size in coefficient assignment");
+  if (_coefficients.size() != coefficients.size())
+    mooseError("FunctionalExpansionInterface:\n"
+               "Mismatched size in coefficient assignment");
 
   if (_coefficients != coefficients)
   {
@@ -72,7 +80,9 @@ FunctionalExpansionInterface::setCoefficients(const std::vector<Real> && coeffic
 void
 FunctionalExpansionInterface::setCoefficients(const std::vector<Real> & coefficients, bool orthonormalized)
 {
-  mooseAssert(_coefficients.size() == coefficients.size(), "Mismatched size in coefficient assignment");
+  if (_coefficients.size() != coefficients.size())
+    mooseError("FunctionalExpansionInterface:\n"
+               "Mismatched size in coefficient assignment");
 
   if (_coefficients != coefficients)
   {

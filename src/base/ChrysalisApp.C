@@ -1,9 +1,10 @@
 #include "ChrysalisApp.h"
 
-#include "DopplerHeat.h"
-#include "DopplerHeatAux.h"
+#include "ElementVariablesDifferenceVariance.h"
 #include "FECoefficientsUserObject.h"
 #include "FEToAuxVariable.h"
+#include "TREATHeat.h"
+#include "TREATHeatAux.h"
 
 // MOOSE includes
 #include "Moose.h"
@@ -37,15 +38,14 @@ ChrysalisApp::~ChrysalisApp()
 std::string
 ChrysalisApp::header() const
 {
-  return  "MOOSE Wrapper for:                                  ==┴╮╭┴==      \n"
+  return  "MOOSE Wrapper for:"                                              "\n"
+          "Serpent 2.1.29 (© Jaakko Leppänen, VTT)             ==┴╮╭┴==      \n"
           "  _                   .-=-.           .-=-.          .-==-.       \n"
           " { }      __        .' O o '.       .' O o '.       ╱  <*  )--<   \n"
           " { }    .' O'.     ╱ o .-. O ╲     ╱ o .-. O ╲     ╱  .---`       \n"
           " { }   ╱ .-. o╲   ╱O  ╱   ╲  o╲   ╱O  ╱   ╲  o╲   ╱O ╱            \n"
           "  ╲ `-` ╱   ╲ O`-'o  ╱     ╲  O`-'o  ╱     ╲  O`-`o ╱             \n"
           "   `-.-`     '.____.'       `._____.'       `.____.'              \n"
-                                                                            "\n"
-          "Serpent 2.1.29 (© Jaakko Leppänen, VTT)"                         "\n"
           "Compatibility with subsequent Serpent versions is not guaranteed  \n"
                                                                             "\n";
 }
@@ -63,10 +63,11 @@ extern "C" void ChrysalisApp__registerObjects(Factory & factory) { ChrysalisApp:
 void
 ChrysalisApp::registerObjects(Factory & factory)
 {
-  registerKernel(DopplerHeat);
-  registerAuxKernel(DopplerHeatAux);
   registerAuxKernel(FEToAuxVariable);
+  registerAuxKernel(TREATHeatAux);
+  registerKernel(TREATHeat);
   registerUserObject(FECoefficientsUserObject);
+  registerVectorPostprocessor(ElementVariablesDifferenceVariance);
 }
 
 // External entry point for dynamic syntax association
