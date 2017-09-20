@@ -150,3 +150,8 @@ include/base/*Revision.h
 out.xyz
 
 compile_commands\.json
+
+# Serpent
+serpent
+
+unit/include/base/Chrysalis-unitRevision\.h
