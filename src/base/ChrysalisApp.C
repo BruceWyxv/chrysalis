@@ -1,4 +1,9 @@
 #include "ChrysalisApp.h"
+#include "ElementVariablesDifferenceVariance.h"
+#include "TREATHeat.h"
+#include "TREATHeatAux.h"
+
+// MOOSE includes
 #include "Moose.h"
 #include "AppFactory.h"
 #include "ModulesApp.h"
@@ -38,8 +43,11 @@ ChrysalisApp::registerApps()
 // External entry point for dynamic object registration
 extern "C" void ChrysalisApp__registerObjects(Factory & factory) { ChrysalisApp::registerObjects(factory); }
 void
-ChrysalisApp::registerObjects(Factory & /*factory*/)
+ChrysalisApp::registerObjects(Factory & factory)
 {
+  registerAuxKernel(TREATHeatAux);
+  registerKernel(TREATHeat);
+  registerVectorPostprocessor(ElementVariablesDifferenceVariance);
 }
 
 // External entry point for dynamic syntax association
