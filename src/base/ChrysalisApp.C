@@ -1,5 +1,7 @@
 #include "ChrysalisApp.h"
 #include "ElementVariablesDifferenceVariance.h"
+#include "FunctionElementIntegral.h"
+#include "FunctionElementAverageValue.h"
 #include "TREATHeat.h"
 #include "TREATHeatAux.h"
 
@@ -47,6 +49,8 @@ ChrysalisApp::registerObjects(Factory & factory)
 {
   registerAuxKernel(TREATHeatAux);
   registerKernel(TREATHeat);
+  registerPostprocessor(FunctionElementIntegral);
+  registerPostprocessor(FunctionElementAverageValue);
   registerVectorPostprocessor(ElementVariablesDifferenceVariance);
 }
 
