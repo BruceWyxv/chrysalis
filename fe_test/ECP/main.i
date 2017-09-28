@@ -21,13 +21,6 @@
   [../]
 []
 
-[AuxVariables]
-  [./Heat]
-    order = FIRST
-    family = LAGRANGE
-  []
-[]
-
 [ICs]
   [./T_IC]
     type = ConstantIC
@@ -45,10 +38,14 @@
     type = HeatConductionTimeDerivative
     variable = Temperature
   [../]
-  [./HeatIn]
-    type = CoupledForce
+  [./HeatGeneration]
+    type = TREATHeat
     variable = Temperature
-    v = Heat
+    center = '0, 0, 0'
+    total_energy = 19e9
+    transient_duration = 10
+    max_temperature = 900
+    initial_temperature = 290
   [../]
 []
 
@@ -60,18 +57,6 @@
   [../]
 []
 
-[Functions]
-  [./FE_Basis]
-    type = FunctionSeries
-    series_type = Cartesian
-    orders = '4, 4, 4'
-    physical_bounds = '-60 60 -5 5 -5 5'
-    x = Legendre
-    y = Legendre
-    z = Legendre
-  [../]
-[]
-
 [Executioner]
   type = Transient
   num_steps = 40
@@ -79,18 +64,12 @@
   solve_type = PJFNK
   petsc_options_iname = '-pc_type -pc_hypre_type'
   petsc_options_value = 'hypre boomeramg'
-  picard_max_its = 30
-  nl_rel_tol = 1e-8
-  nl_abs_tol = 1e-9
-  picard_rel_tol = 1e-8
-  picard_abs_tol = 1e-9
 []
 
 [Postprocessors]
   [./Elapsed_Time]
     type = PerformanceData
-    event = ACTIVE
-    column = TOTAL_TIME
+    event = ALIVE
     outputs = 'console csv'
   [../]
   [./Iterations:_Linear]
@@ -113,39 +92,6 @@
     type = ElementExtremeValue
     value_type = max
     variable = Temperature
-  [../]
-[]
-
-[MultiApps]
-  [./FEIdentical]
-    type = TransientMultiApp
-    input_files = sub.i
-    sub_cycling = true
-  [../]
-[]
-
-[UserObjects]
-  [./TemperatureFE]
-    type = FEVolumeUserObject
-    function = FE_Basis
-    variable = Temperature
-  [../]
-[]
-
-[Transfers]
-  [./TemperatureToSub]
-    type = MultiAppUserObjectTransfer
-    direction = to_multiapp
-    multi_app = FEIdentical
-    variable = Temperature
-    user_object = TemperatureFE
-  [../]
-  [./HeatToMe]
-    type = MultiAppUserObjectTransfer
-    direction = from_multiapp
-    multi_app = FEIdentical
-    variable = Heat
-    user_object = HeatGenerationFE
   [../]
 []
 
