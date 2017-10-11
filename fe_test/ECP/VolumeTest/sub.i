@@ -42,15 +42,14 @@
     type = TREATHeatAux
     in = Temperature
     variable = Heat
-    center = '0, 0, 0'
+    center = '0   0   0'
     total_energy = 19e9
     transient_duration = 10
     max_temperature = 900
     initial_temperature = 290
   [../]
   [./TemperatueConversion]
-    type = FunctionAux
-    execute_on = timestep_begin
+    type = FunctionSeriesToAux
     function = FE_Basis
     variable = Temperature
   [../]
@@ -69,8 +68,8 @@
   [./FE_Basis]
     type = FunctionSeries
     series_type = Cartesian
-    orders = '5, 3, 3'
-    physical_bounds = '-60 60 -5 5 -5 5'
+    orders = '5   3   3'
+    physical_bounds = '-60 60   -5 5   -5 5'
     x = Legendre
     y = Legendre
     z = Legendre

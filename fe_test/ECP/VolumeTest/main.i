@@ -46,10 +46,9 @@
 
 [AuxKernels]
   [./ReconstructHeat]
-    type = FunctionAux
+    type = FunctionSeriesToAux
     variable = Heat
     function = FE_Basis
-    execute_on = timestep_begin
   [../]
 []
 
@@ -73,8 +72,8 @@
   [./FE_Basis]
     type = FunctionSeries
     series_type = Cartesian
-    orders = '5, 3, 3'
-    physical_bounds = '-60 60 -5 5 -5 5'
+    orders = '5   3   3'
+    physical_bounds = '-60 60   -5 5   -5 5'
     x = Legendre
     y = Legendre
     z = Legendre
@@ -145,14 +144,14 @@
     type = MultiAppFETransfer
     direction = to_multiapp
     multi_app = FETransferApp
-    master_app_object_name = TemperatureFE
+    this_app_object_name = TemperatureFE
     multi_app_object_name = FE_Basis
   [../]
   [./HeatToMe]
     type = MultiAppFETransfer
     direction = from_multiapp
     multi_app = FETransferApp
-    master_app_object_name = FE_Basis
+    this_app_object_name = FE_Basis
     multi_app_object_name = HeatGenerationFE
   [../]
 []
