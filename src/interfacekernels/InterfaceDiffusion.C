@@ -75,10 +75,8 @@ InterfaceDiffusion::InterfaceDiffusion(const InputParameters &parameters)
             : atof(&_neighbor_diffusivity_input.front()))
 {
   if (!parameters.isParamValid("boundary"))
-  {
     mooseError("In order to use the InterfaceDiffusion '", name(),
                "', you must specify a boundary where it will live.");
-  }
 
   if (!isParamValid("neighbor_side_diffusivity") &&
       _use_variable_side_material != _use_neighbor_side_material)

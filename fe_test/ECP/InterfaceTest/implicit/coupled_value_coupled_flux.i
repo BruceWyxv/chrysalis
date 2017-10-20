@@ -1,17 +1,19 @@
 [Mesh]
   type = GeneratedMesh
   dim = 2
-  nx = 20
-  xmax = 2
-  ny = 20
-  ymax = 2
+  nx = 36
+  xmin = 0
+  xmax = 2.4
+  ny = 80
+  ymin = 0
+  ymax = 10
 []
 
 [MeshModifiers]
   [./subdomain1]
     type = SubdomainBoundingBox
-    bottom_left = '0 0 0'
-    top_right = '1 1 0'
+    bottom_left = '0.0 0.0 0.0'
+    top_right = '0.4 10.0 0.0'
     block_id = 1
   [../]
   [./interface]
@@ -28,90 +30,133 @@
 []
 
 [Variables]
-  [./u]
-    order = FIRST
-    family = LAGRANGE
+  [./water_temp]
     block = 0
   [../]
 
-  [./v]
-    order = FIRST
-    family = LAGRANGE
+  [./fuel_temp]
     block = 1
   [../]
 []
 
 [Kernels]
-  [./diff_u]
+  [./diff_water_temp]
     type = HeatConduction
-    variable = u
+    variable = water_temp
   [../]
-  [./diff_v]
+  [./time_diff_water_temp]
+    type = HeatConductionTimeDerivative
+    variable = water_temp
+  [../]
+  [./diff_fuel_temp]
     type = HeatConduction
-    variable = v
+    variable = fuel_temp
   [../]
-  [./source_u]
+  [./time_diff_fuel_temp]
+    type = HeatConductionTimeDerivative
+    variable = fuel_temp
+  [../]
+  [./source_fuel_temp]
     type = BodyForce
-    variable = u
-    value = 1
-  [../]
-[]
-
-[InterfaceKernels]
-  [./couple_flux]
-    type = InterfaceDiffusion
-    variable = u
-    neighbor_var = v
-    boundary = master0_interface
-    variable_side_diffusivity = thermal_conductivity
+    variable = fuel_temp
+    value = 300
   [../]
 []
 
 [Materials]
-  [./Fuel] # Essentially graphite, from http://www.azom.com/article.aspx?ArticleID=1630
+  [./Fuel] # Essentially UO2
     type = GenericConstantMaterial
     prop_names =  'thermal_conductivity specific_heat density'
-    prop_values = '2.475                0.800         1.8' # W/(cm K), J/(g K), g/cm^3
-    block = 0
+    prop_values = '0.053                0.233         10.5' # W/(cm K), J/(g K), g/cm^3
+    block = 1
   [../]
   [./Water]
     type = GenericConstantMaterial
     prop_names =  'thermal_conductivity specific_heat density'
     prop_values = '0.591                4.182         0.9983' # W/(cm K), J/(g K), g/cm^3
-    block = 1
+    block = 0
+  [../]
+[]
+
+[ICs]
+  [./start_fuel_temp]
+    type = ConstantIC
+    value = 290
+    variable = fuel_temp
+  [../]
+  [./start_water_temp]
+    type = ConstantIC
+    value = 290
+    variable = water_temp
+  [../]
+[]
+
+[InterfaceKernels]
+  [./match_water_to_fuel_heat_flux]
+    type = InterfaceDiffusion
+    variable = water_temp
+    neighbor_var = fuel_temp
+    boundary = master0_interface
+    variable_side_diffusivity = thermal_conductivity
+    neighbor_side_diffusivity = thermal_conductivity
   [../]
 []
 
 [BCs]
-  [./u]
-    type = VacuumBC
-    variable = u
-    boundary = 'left_to_0 bottom_to_0 right top'
+  [./cool_water_in]
+    type = DirichletBC
+    variable = water_temp
+    boundary = bottom
+    value = 290
   [../]
-  [./v]
-    type = VacuumBC
-    variable = v
-    boundary = 'left_to_1 bottom_to_1'
+  [./no_heat_flux_across_water_centerline]
+    type = NeumannBC
+    variable = water_temp
+    boundary = right
+    value = 0
   [../]
-  [./couple_value]
+  [./hold_centerline_water_temp]
+    type = FunctionDirichletBC
+    variable = water_temp
+    boundary = right
+    function = '290 + y*10'
+  [../]
+  [./no_heat_flux_across_fuel_center]
+    type = NeumannBC
+    variable = fuel_temp
+    boundary = left
+    value = 0
+  [../]
+  [./match_water_to_fuel_temperatures]
     type = MatchedValueBC
-    variable = v
+    variable = fuel_temp
     boundary = 'master0_interface'
-    v = u
+    v = water_temp
   [../]
 []
 
 [Postprocessors]
-  [./u_int]
-    type = ElementIntegralVariablePostprocessor
-    variable = u
-    block = 0
+  [./average_interface_temperature]
+    type = SideAverageValue
+    variable = water_temp
+    boundary = master0_interface
   [../]
-  [./v_int]
-    type = ElementIntegralVariablePostprocessor
-    variable = v
-    block = 1
+  [./total_flux]
+    type = SideFluxIntegral
+    variable = water_temp
+    boundary = master0_interface
+    diffusivity = 'thermal_conductivity'
   [../]
+  #[./average_water_temp]
+  #  type = ElementAverageValue
+  #  variable = water_temp
+  #  block = 0
+  #[../]
+  #[./average_fuel_temp]
+  #  type = ElementAverageValue
+  #  variable = fuel_temp
+  #  block = 1
+  #[../]
 []
 
 [Preconditioning]
@@ -122,11 +167,22 @@
 []
 
 [Executioner]
-  type = Steady
-  solve_type = NEWTON
+  type = Transient
+  num_steps = 70
+  dt = 2.0
+  solve_type = PJFNK
+  petsc_options_iname = '-pc_type -pc_hypre_type'
+  petsc_options_value = 'hypre boomeramg'
+  nl_rel_tol = 1e-8
+  nl_abs_tol = 1e-9
 []
 
 [Outputs]
   exodus = true
-  print_linear_residuals = true
+  file_base = implicit
+  #print_linear_residuals = true
+  [./csv]
+    type = CSV
+    file_base = csv/test
+  []
 []
