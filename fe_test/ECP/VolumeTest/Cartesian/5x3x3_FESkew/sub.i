@@ -3,15 +3,18 @@
 [Mesh]
   type = GeneratedMesh
   dim = 3
-  nx = 256
-  ny = 32
-  nz = 32
+  nx = 100
+  ny = 25
+  nz = 25
   xmin = -60
   xmax = 60
   ymin = -5
   ymax = 5
   zmin = -5
   zmax = 5
+  bias_x = 1.01
+  bias_y = 1.01
+  bias_z = 1.01
 []
 
 [Variables]

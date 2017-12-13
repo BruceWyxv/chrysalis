@@ -3,15 +3,18 @@
 [Mesh]
   type = GeneratedMesh
   dim = 3
-  nx = 256
-  ny = 32
-  nz = 32
+  nx = 100
+  ny = 25
+  nz = 25
   xmin = -60
   xmax = 60
   ymin = -5
   ymax = 5
   zmin = -5
   zmax = 5
+  bias_x = 1.01
+  bias_y = 1.01
+  bias_z = 1.01
 []
 
 [Variables]
@@ -57,24 +60,4 @@
   solve_type = PJFNK
   petsc_options_iname = '-pc_type -pc_hypre_type'
   petsc_options_value = 'hypre boomeramg'
-[]
-
-[Functions]
-  [./FE_Basis]
-    type = FunctionSeries
-    series_type = Cartesian
-    orders = '5, 3, 3'
-    physical_bounds = '-60 60 -5 5 -5 5'
-    x = Legendre
-    y = Legendre
-    z = Legendre
-  [../]
-[]
-
-[UserObjects]
-  [./HeatGenerationFE]
-    type = FEVolumeUserObject
-    function = FE_Basis
-    variable = Heat
-  [../]
 []

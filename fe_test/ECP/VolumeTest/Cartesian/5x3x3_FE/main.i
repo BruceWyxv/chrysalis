@@ -3,9 +3,9 @@
 [Mesh]
   type = GeneratedMesh
   dim = 3
-  nx = 256
-  ny = 32
-  nz = 32
+  nx = 100
+  ny = 25
+  nz = 25
   xmin = -60
   xmax = 60
   ymin = -5
@@ -25,6 +25,14 @@
   [./Heat]
     order = FIRST
     family = LAGRANGE
+  [../]
+[]
+
+[ICs]
+  [./T_IC]
+    type = ConstantIC
+    variable = Temperature
+    value = 290
   [../]
 []
 
@@ -49,14 +57,6 @@
     type = FunctionSeriesToAux
     variable = Heat
     function = FE_Basis
-  [../]
-[]
-
-[ICs]
-  [./T_IC]
-    type = ConstantIC
-    variable = Temperature
-    value = 290
   [../]
 []
 
@@ -136,6 +136,7 @@
     type = FEVolumeUserObject
     function = FE_Basis
     variable = Temperature
+#    print_state = true
   [../]
 []
 

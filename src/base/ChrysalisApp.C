@@ -1,5 +1,7 @@
 #include "ChrysalisApp.h"
 #include "ElementVariablesDifferenceVariance.h"
+#include "FuelPinHeat.h"
+#include "FuelPinHeatAux.h"
 #include "FunctionElementAverageValue.h"
 #include "FunctionElementIntegral.h"
 #include "InterfaceDiffusion.h"
@@ -49,8 +51,10 @@ void
 ChrysalisApp::registerObjects(Factory & factory)
 {
   registerAuxKernel(TREATHeatAux);
+  registerAuxKernel(FuelPinHeatAux);
   registerInterfaceKernel(InterfaceDiffusion);
   registerKernel(TREATHeat);
+  registerKernel(FuelPinHeat);
   registerPostprocessor(FunctionElementIntegral);
   registerPostprocessor(FunctionElementAverageValue);
   registerVectorPostprocessor(ElementVariablesDifferenceVariance);

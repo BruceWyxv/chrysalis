@@ -3,9 +3,9 @@
 [Mesh]
   type = GeneratedMesh
   dim = 3
-  nx = 256
-  ny = 32
-  nz = 32
+  nx = 100
+  ny = 25
+  nz = 25
   xmin = -60
   xmax = 60
   ymin = -5
@@ -52,6 +52,14 @@
   [../]
 []
 
+[AuxKernels]
+  [./ReconstructHeat]
+    type = FunctionSeriesToAux
+    variable = Heat
+    function = FE_Basis
+  [../]
+[]
+
 [Materials]
   [./Fuel] # Essentially graphite, from http://www.azom.com/article.aspx?ArticleID=1630
     type = GenericConstantMaterial
@@ -64,8 +72,8 @@
   [./FE_Basis]
     type = FunctionSeries
     series_type = Cartesian
-    orders = '11, 5, 5'
-    physical_bounds = '-60 60 -5 5 -5 5'
+    orders = '5   3   3'
+    physical_bounds = '-60 60   -5 5   -5 5'
     x = Legendre
     y = Legendre
     z = Legendre
@@ -128,23 +136,24 @@
     type = FEVolumeUserObject
     function = FE_Basis
     variable = Temperature
+#    print_state = true
   [../]
 []
 
 [Transfers]
   [./TemperatureToSub]
-    type = MultiAppUserObjectTransfer
+    type = MultiAppFETransfer
     direction = to_multiapp
     multi_app = FETransferApp
-    variable = Temperature
-    user_object = TemperatureFE
+    this_app_object_name = TemperatureFE
+    multi_app_object_name = FE_Basis
   [../]
   [./HeatToMe]
-    type = MultiAppUserObjectTransfer
+    type = MultiAppFETransfer
     direction = from_multiapp
     multi_app = FETransferApp
-    variable = Heat
-    user_object = HeatGenerationFE
+    this_app_object_name = FE_Basis
+    multi_app_object_name = HeatGenerationFE
   [../]
 []
 

@@ -1,17 +1,9 @@
-# This is a simplistic simulation of a single fuel rod in TREAT. Many of the parameters were taken from:
-# http://www.iaea.org/inis/collection/NCLCollectionStore/_Public/12/627/12627688.pdf
+# This is a 'fuel pin' scenario, adapted from a cylindrical model available in MOOSE's ex06
+
 [Mesh]
-  type = GeneratedMesh
-  dim = 3
-  nx = 256
-  ny = 32
-  nz = 32
-  xmin = -60
-  xmax = 60
-  ymin = -5
-  ymax = 5
-  zmin = -5
-  zmax = 5
+  type = FileMesh
+  file = cylinder.e
+  uniform_refine = 1
 []
 
 [Variables]
@@ -39,20 +31,24 @@
 
 [AuxKernels]
   [./HeatGeneration]
-    type = TREATHeatAux
+    type = FuelPinHeatAux
     in = Temperature
     variable = Heat
-    center = '0, 0, 0'
-    total_energy = 19e9
-    transient_duration = 10
-    max_temperature = 900
+    center = '0.15, 0.15, -0.2'
+    total_energy = 14e3
+    max_temperature = 600
     initial_temperature = 290
+  [../]
+  [./TemperatureConversion]
+    type = FunctionSeriesToAux
+    function = FE_Basis
+    variable = Temperature
   [../]
 []
 
 [Executioner]
   type = Transient
-  num_steps = 40
+  num_steps = 80
   dt = 0.5
   solve_type = PJFNK
   petsc_options_iname = '-pc_type -pc_hypre_type'
@@ -62,11 +58,10 @@
 [Functions]
   [./FE_Basis]
     type = FunctionSeries
-    series_type = Cartesian
-    orders = '11, 5, 5'
-    physical_bounds = '-60 60 -5 5 -5 5'
-    x = Legendre
-    y = Legendre
+    series_type = CylindricalDuo
+    orders = '5   3'
+    physical_bounds = '-2.5 2.5   0 0 1'
+    disc = Zernike
     z = Legendre
   [../]
 []
