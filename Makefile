@@ -3,7 +3,7 @@
 ###############################################################################
 #
 # Optional Environment variables
-# MOOSE_DIR        - Root directory of the MOOSE project 
+# MOOSE_DIR        - Root directory of the MOOSE project
 #
 ###############################################################################
 # Use the MOOSE submodule if it exists and MOOSE_DIR is not set
@@ -22,7 +22,7 @@ include $(FRAMEWORK_DIR)/moose.mk
 ################################## MODULES ####################################
 ALL_MODULES := no
 HEAT_CONDUCTION := yes
-FUNCTIONAL_EXPANSION := yes
+FUNCTIONAL_EXPANSION_TOOLS := yes
 include $(MOOSE_DIR)/modules/modules.mk
 ###############################################################################
 
