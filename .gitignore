@@ -157,3 +157,5 @@ serpent
 unit/include/base/Chrysalis-unitRevision\.h
 
 build/header_symlinks/
+
+build/unity_src/
