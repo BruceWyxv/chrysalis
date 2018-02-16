@@ -63,13 +63,6 @@
     boundary = right
     function = '290 + y*10'
   [../]
-  #[./temperature_from_fuel]
-  #  type = FEValuePenaltyBC
-  #  variable = water_temp
-  #  boundary = left
-  #  function = FE_Basis_Temperature
-  #  penalty = 0.5
-  #[../]
   [./heat_from_fuel]
     type = FEFluxBC
     boundary = left
@@ -107,7 +100,7 @@
     function = FE_Basis_Heat
     variable = water_temp
     boundary = left
-    diffusion_coefficient = thermal_conductivity
+    diffusivity = thermal_conductivity
   [../]
 []
 

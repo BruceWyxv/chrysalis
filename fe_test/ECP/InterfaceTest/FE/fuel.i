@@ -98,7 +98,7 @@
     function = FE_Basis_Heat
     variable = fuel_temp
     boundary = right
-    diffusion_coefficient = thermal_conductivity
+    diffusivity = thermal_conductivity
   [../]
 []
 
