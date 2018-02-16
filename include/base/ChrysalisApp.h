@@ -1,8 +1,6 @@
 #ifndef CHRYSALISAPP_H
 #define CHRYSALISAPP_H
 
-#include "FunctionalExpansionAppInterface.h"
-
 #include "MooseApp.h"
 
 class ChrysalisApp;
@@ -10,16 +8,13 @@ class ChrysalisApp;
 template<>
 InputParameters validParams<ChrysalisApp>();
 
-class ChrysalisApp : public MooseApp,
-                     public FunctionalExpansionAppInterface
+class ChrysalisApp : public MooseApp
 {
 public:
   ChrysalisApp(InputParameters parameters);
   virtual ~ChrysalisApp();
 
   virtual std::string header() const override;
-
-  virtual bool IsFunctionalExpansionApp() override {return true;}
 
   static void registerApps();
   static void registerObjects(Factory & factory);

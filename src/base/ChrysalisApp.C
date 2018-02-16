@@ -1,8 +1,6 @@
 #include "ChrysalisApp.h"
 
 #include "ElementVariablesDifferenceVariance.h"
-#include "FECoefficientsUserObject.h"
-#include "FEToAuxVariable.h"
 #include "TREATHeat.h"
 #include "TREATHeatAux.h"
 
@@ -63,10 +61,8 @@ extern "C" void ChrysalisApp__registerObjects(Factory & factory) { ChrysalisApp:
 void
 ChrysalisApp::registerObjects(Factory & factory)
 {
-  registerAuxKernel(FEToAuxVariable);
   registerAuxKernel(TREATHeatAux);
   registerKernel(TREATHeat);
-  registerUserObject(FECoefficientsUserObject);
   registerVectorPostprocessor(ElementVariablesDifferenceVariance);
 }
 

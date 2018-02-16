@@ -161,3 +161,63 @@ TEST(FunctionalExpansionsTest, functionalExpansionInterface)
   interface.setCoefficients(std::vector<Real>(interface.getNumberOfCoefficients(), 0));
   EXPECT_EQ(interface.sample(location), 0);
 }
+
+// Real getLegendreMonomial(Real x, std::size_t order)
+// {
+//   switch (order)
+//   {
+//     default:
+//     case 0: return 1;
+//     case 1: return x;
+//     case 2: return (3 * x * x - 1) * 0.5;
+//     case 3: return (5 * x * x * x - 3 * x) * 0.5;
+//     case 4: return (35 * x * x * x * x - 30 * x * x + 3) * .125;
+//   }
+// }
+//
+// TEST(FunctionalExpansionsTest, coefficientTesting)
+// {
+//   const std::array<unsigned int, 3> orders({{4, 1, 1}});
+//   const std::vector<Real> coefficients(20, 0.5);
+//   std::vector<Point> locations;
+//   std::vector<Real> results;
+//   const std::size_t number_of_samples = 27;
+//   std::size_t x, y, z;
+//
+//   for (std::size_t s = 0; s < number_of_samples; ++s)
+//   {
+//     z = s % 3;
+//     y = ((s - z) / 3) % 3;
+//     x = (((s - z) / 3 - y) / 3) % 3;
+//     locations.emplace_back(x * 2, y * 2, z * 2);
+//     results.push_back(0.0);
+//
+//     for (std::size_t i = 0, index = 0; i <= orders[0]; ++i)
+//     {
+//       for (std::size_t j = 0; j <= orders[1]; ++j)
+//       {
+//         for (std::size_t k = 0; k <= orders[2]; ++k, ++index)
+//         {
+//           results.back() += coefficients[index]
+//                             * getLegendreMonomial(locations.back()(0) * 0.25, i)
+//                             * getLegendreMonomial(locations.back()(1) * 0.25, j)
+//                             * getLegendreMonomial(locations.back()(2) * 0.25, k);
+//         }
+//       }
+//     }
+//
+//     std::cout << s << ": " << locations.back() << "        < " << results.back() << " >" << std::endl;
+//   }
+//
+//   FunctionalExpansionSolidCartesianLegendre legendre(orders);
+//   FunctionalExpansionInterface & interface = (FunctionalExpansionInterface &)legendre;
+//   interface.setDimensionality(3);
+//
+//   interface.setCoefficients(coefficients);
+//   interface.setBounds({-4, 4, -4, 4, -4, 4});
+//
+//   for (std::size_t i = 0; i < locations.size(); ++i)
+//   {
+//     EXPECT_NEAR(interface.sample(locations[i]), results[i], tol);
+//   }
+// }

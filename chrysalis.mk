@@ -37,8 +37,8 @@ SERPENT_SRC 		:= $(sort $(wildcard $(LOCAL_SERPENT_DIR)/*.c))
 SERPENT_OBJ		:= $(patsubst %.c, %.$(obj-suffix), $(SERPENT_SRC))
 SERPENT_DEPS		:= $(patsubst %.$(obj-suffix), %.$(obj-suffix).d, $(SERPENT_OBJ))
 
-SERPENT_CFLAGS	:= $(ADDITIONAL_CPPFLAGS) -w -ansi -ffast-math -O3
-SERPENT_LDFLAGS		:= $(ADDITIONAL_LDFLAGS) -lm
+SERPENT_CFLAGS	:= $(ADDITIONAL_CPPFLAGS) -w -ansi -ffast-math -O3 -flto
+SERPENT_LDFLAGS		:= $(ADDITIONAL_LDFLAGS) -lm -flto
 
 # Add Serpent to this app's dependencies
 app_INCLUDES		+= -I$(LOCAL_SERPENT_DIR)
