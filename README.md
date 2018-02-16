@@ -1,5 +1,5 @@
-Chrysalis
-========
+# Chrysalis
+---
 
 This is an application that will evolve, as I do, in working with the MOOSE Framework.
 
