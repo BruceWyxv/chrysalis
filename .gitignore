@@ -155,3 +155,5 @@ compile_commands\.json
 serpent
 
 unit/include/base/Chrysalis-unitRevision\.h
+
+build/header_symlinks/

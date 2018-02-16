@@ -16,14 +16,11 @@ int main(int argc, char *argv[])
   // Register this application's MooseApp and any it depends on
   ChrysalisApp::registerApps();
 
-  // This creates dynamic memory that we're responsible for deleting
-  MooseApp * app = AppFactory::createApp("ChrysalisApp", argc, argv);
+  // Create the shared app
+  MooseAppPtr app = AppFactory::createAppShared("ChrysalisApp", argc, argv);
 
   // Execute the application
   app->run();
-
-  // Free up the memory we created earlier
-  delete app;
 
   return 0;
 }
