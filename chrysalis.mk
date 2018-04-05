@@ -34,6 +34,7 @@ APPLICATION_DIR       := $(realpath $(APPLICATION_DIR))
 LOCAL_SERPENT_DIR     := $(APPLICATION_DIR)/serpent
 
 TRICK_SCRIPT_TO_RUN   := $(shell $(APPLICATION_DIR)/scripts/update_serpent.sh $(APPLICATION_DIR)/serpent)
+SERPENT_UPDATES       = 0
 
 ###############################################################################
 
@@ -119,18 +120,25 @@ export MESSAGE_NOTIFICATION
 
 # Create the rule to build the Serpent library
 
+# If this target is hit then at least one Serpent source file is being recompiled, so the library
+# will need rebuilt
 $(LOCAL_SERPENT_DIR)/%.$(obj-suffix) : $(LOCAL_SERPENT_DIR)/%.c
 	@echo "MOOSE Compiling Serpent (in "$(METHOD)" mode) "$<"..."
+	$(eval SERPENT_UPDATES = 1)
 	@$(libmesh_LIBTOOL) --tag=CC $(LIBTOOLFLAGS) --mode=compile --quiet \
 		$(libmesh_CC) $(libmesh_CPPFLAGS) $(SERPENT_CFLAGS) $(libmesh_CFLAGS) -MMD -MP -MF $@.d -MT $@ -c $< -o $@
 
 $(SERPENT_LIB): pre_install_notifications $(SERPENT_OBJ)
-	@echo "Linking Library "$@"..."
-	@$(libmesh_LIBTOOL) --tag=CC $(LIBTOOLFLAGS) --mode=link --quiet \
-		$(libmesh_CC) $(libmesh_CFLAGS) -o $@ $(SERPENT_OBJ) \
-		$(libmesh_LDFLAGS) $(SERPENT_LDFLAGS) $(EXTERNAL_FLAGS) \
-		-rpath $(LOCAL_SERPENT_DIR)
-	@$(libmesh_LIBTOOL) --mode=install --quiet install -c $(SERPENT_LIB) $(LOCAL_SERPENT_DIR)
+	@if [ "$(SERPENT_UPDATES)" -eq 0 ]; then \
+		echo "No Serpent code modifications detected, leaving "$(SERPENT_LIB_NAME)" as is."; \
+	else \
+		echo "Linking Library "$@"...";\
+		$(libmesh_LIBTOOL) --tag=CC $(LIBTOOLFLAGS) --mode=link --quiet \
+			$(libmesh_CC) $(libmesh_CFLAGS) -o $@ $(SERPENT_OBJ) \
+			$(libmesh_LDFLAGS) $(SERPENT_LDFLAGS) $(EXTERNAL_FLAGS) \
+			-rpath $(LOCAL_SERPENT_DIR);\
+		$(libmesh_LIBTOOL) --mode=install --quiet install -c $(SERPENT_LIB) $(LOCAL_SERPENT_DIR); \
+	fi
 
 pre_install_notifications:
 	@echo "$$MESSAGE_NOTIFICATION"
