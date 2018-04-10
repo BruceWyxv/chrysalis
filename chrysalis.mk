@@ -22,7 +22,7 @@ my build.
 endef
 
 ifeq ($(SERPENT_HOME),)
-  $(error $(MESSAGE_ERROR))
+	$(error $(MESSAGE_ERROR))
 endif
 
 ###############################################################################
@@ -34,7 +34,6 @@ APPLICATION_DIR       := $(realpath $(APPLICATION_DIR))
 LOCAL_SERPENT_DIR     := $(APPLICATION_DIR)/serpent
 
 TRICK_SCRIPT_TO_RUN   := $(shell $(APPLICATION_DIR)/scripts/update_serpent.sh $(APPLICATION_DIR)/serpent)
-SERPENT_UPDATES       = 0
 
 ###############################################################################
 
@@ -59,45 +58,45 @@ MESSAGE_DIRECTORY     := - The local copy of Serpent is in '$(LOCAL_SERPENT_DIR)
 
 # MPI
 ifeq ($(findstring mpi,$(libmesh_CC)),)
-  MESSAGE_MPI         := - Compiling without MPI support
+MESSAGE_MPI         := - Compiling without MPI support
 else
-  MESSAGE_MPI         := - MPI compiler detected! Compiling with MPI support
-  SERPENT_CFLAGS      += -DMPI
+MESSAGE_MPI         := - MPI compiler detected! Compiling with MPI support
+SERPENT_CFLAGS      += -DMPI
 endif
 
 # OpenMP
 ifeq ($(findstring openmp,$(libmesh_CFLAGS)),)
-  MESSAGE_OPENMP      := - Compiling for single-thread operations
+MESSAGE_OPENMP      := - Compiling for single-thread operations
 else
-  MESSAGE_OPENMP      := - OpenMP libraries found! Compiling with OpenMP support
-  SERPENT_CFLAGS      += -DOPEN_MP
+MESSAGE_OPENMP      := - OpenMP libraries found! Compiling with OpenMP support
+SERPENT_CFLAGS      += -DOPEN_MP
 endif
 
 # Graphics
 ifeq ($(shell ldconfig -p | grep "libgd\."),)
-  MESSAGE_GRAPHICS    := - Compiling without GD graphics support
-  SERPENT_CFLAGS      += -DNO_GFX_MODE
+MESSAGE_GRAPHICS    := - Compiling without GD graphics support
+SERPENT_CFLAGS      += -DNO_GFX_MODE
 else
-  MESSAGE_GRAPHICS    := - GD graphics library found! Compiling with graphics support
-  SERPENT_LDFLAGS     += -lgd
+MESSAGE_GRAPHICS    := - GD graphics library found! Compiling with graphics support
+SERPENT_LDFLAGS     += -lgd
 endif
 
 # Debug
 ifeq ($(METHOD),dbg)
-  MESSAGE_MODE        := - Debug mode deteted, compiling with debugging options
-  SERPENT_CFLAGS      += -DDEBUG -g
-  SERPENT_LDFLAGS     += -g
+MESSAGE_MODE        := - Debug mode deteted, compiling with debugging options
+SERPENT_CFLAGS      += -DDEBUG -g
+SERPENT_LDFLAGS     += -g
 else
-  MESSAGE_MODE        := - Compiling in optimized mode
+MESSAGE_MODE        := - Compiling in optimized mode
 endif
 
 # Link-time optimization
 ifeq ($(USE_LTO),TRUE)
-  MESSAGE_LTO         := - Using LTO, linking '$(SERPENT_LIB_NAME)' may take a minute or more
-  SERPENT_CFLAGS      += -flto
-  SERPENT_LDFLAGS     += -flto
+MESSAGE_LTO         := - Using LTO, linking '$(SERPENT_LIB_NAME)' may take a minute or more
+SERPENT_CFLAGS      += -flto
+SERPENT_LDFLAGS     += -flto
 else
-  MESSAGE_LTO         := - No LTO, expect slower Serpent runs
+MESSAGE_LTO         := - No LTO, expect slower Serpent runs
 endif
 
 ###############################################################################
@@ -118,21 +117,33 @@ export MESSAGE_NOTIFICATION
 
 ###############################################################################
 
+# Determine the level of rebuild needed in the Serpent directory
+
+ifneq (,$(findstring Nothing,$(TRICK_SCRIPT_TO_RUN)))
+SERPENT_UPDATES       = 0
+else ifneq (,$(findstring Patching,$(TRICK_SCRIPT_TO_RUN)))
+# Header files were modified, we need to rebuild the entire source tree
+SERPENT_UPDATES				= 2
+$(shell rm -f $(SERPENT_LIB); rm -f $(SERPENT_DEPS); rm -f $(SERPENT_OBJ))
+else
+# Only source files were modified, recompile and rebuild as neccessary
+SERPENT_UPDATES				= 1
+endif
+
+###############################################################################
+
 # Create the rule to build the Serpent library
 
 # If this target is hit then at least one Serpent source file is being recompiled, so the library
 # will need rebuilt
 $(LOCAL_SERPENT_DIR)/%.$(obj-suffix) : $(LOCAL_SERPENT_DIR)/%.c
 	@echo "MOOSE Compiling Serpent (in "$(METHOD)" mode) "$<"..."
-	$(eval SERPENT_UPDATES = 1)
 	@$(libmesh_LIBTOOL) --tag=CC $(LIBTOOLFLAGS) --mode=compile --quiet \
 		$(libmesh_CC) $(libmesh_CPPFLAGS) $(SERPENT_CFLAGS) $(libmesh_CFLAGS) -MMD -MP -MF $@.d -MT $@ -c $< -o $@
 
 $(SERPENT_LIB): pre_install_notifications $(SERPENT_OBJ)
-	@if [ "$(SERPENT_UPDATES)" -eq 0 ]; then \
-		echo "No Serpent code modifications detected, leaving "$(SERPENT_LIB_NAME)" as is."; \
-	else \
-		echo "Linking Library "$@"...";\
+	@if [ "$(SERPENT_UPDATES)" -ne 0 ]; then \
+		echo "Linking Library "$@"..."; \
 		$(libmesh_LIBTOOL) --tag=CC $(LIBTOOLFLAGS) --mode=link --quiet \
 			$(libmesh_CC) $(libmesh_CFLAGS) -o $@ $(SERPENT_OBJ) \
 			$(libmesh_LDFLAGS) $(SERPENT_LDFLAGS) $(EXTERNAL_FLAGS) \
@@ -141,6 +152,9 @@ $(SERPENT_LIB): pre_install_notifications $(SERPENT_OBJ)
 	fi
 
 pre_install_notifications:
+	@if [ "$(SERPENT_UPDATES)" -eq 0 ]; then \
+		echo "No Serpent code modifications detected, leaving "$(SERPENT_LIB_NAME)" as is."; \
+		fi
 	@echo "$$MESSAGE_NOTIFICATION"
 
 ###############################################################################
@@ -154,7 +168,7 @@ clean::
 	@rm -f $(SERPENT_OBJ)
 
 clobber::
-	@if [ -d "$(LOCAL_SERPENT_DIR)" ]; then\
+	@if [ -d "$(LOCAL_SERPENT_DIR)" ]; then \
 		echo Removing directory $(LOCAL_SERPENT_DIR); \
 		rm -rf $(LOCAL_SERPENT_DIR); \
 	fi

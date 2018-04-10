@@ -1,24 +1,19 @@
 #include "ChrysalisApp.h"
 
-#include "ElementVariablesDifferenceVariance.h"
-#include "TREATHeat.h"
-#include "TREATHeatAux.h"
-
-// MOOSE includes
 #include "Moose.h"
 #include "AppFactory.h"
 #include "ModulesApp.h"
 #include "MooseSyntax.h"
 
-template<>
-InputParameters validParams<ChrysalisApp>()
+template <>
+InputParameters
+validParams<ChrysalisApp>()
 {
   InputParameters params = validParams<MooseApp>();
   return params;
 }
 
-ChrysalisApp::ChrysalisApp(InputParameters parameters)
-  : MooseApp(parameters)
+ChrysalisApp::ChrysalisApp(InputParameters parameters) : MooseApp(parameters)
 {
   Moose::registerObjects(_factory);
   ModulesApp::registerObjects(_factory);
@@ -29,27 +24,30 @@ ChrysalisApp::ChrysalisApp(InputParameters parameters)
   ChrysalisApp::associateSyntax(_syntax, _action_factory);
 }
 
-ChrysalisApp::~ChrysalisApp()
-{
-}
+ChrysalisApp::~ChrysalisApp() {}
 
 std::string
 ChrysalisApp::header() const
 {
-  return  "MOOSE Wrapper for:"                                              "\n"
-          "Serpent 2.1.29 (© Jaakko Leppänen, VTT)             ==┴╮╭┴==      \n"
-          "  _                   .-=-.           .-=-.          .-==-.       \n"
-          " { }      __        .' O o '.       .' O o '.       ╱  <*  )--<   \n"
-          " { }    .' O'.     ╱ o .-. O ╲     ╱ o .-. O ╲     ╱  .---`       \n"
-          " { }   ╱ .-. o╲   ╱O  ╱   ╲  o╲   ╱O  ╱   ╲  o╲   ╱O ╱            \n"
-          "  ╲ `-` ╱   ╲ O`-'o  ╱     ╲  O`-'o  ╱     ╲  O`-`o ╱             \n"
-          "   `-.-`     '.____.'       `._____.'       `.____.'              \n"
-          "Compatibility with subsequent Serpent versions is not guaranteed  \n"
-                                                                            "\n";
+  return "MOOSE Wrapper for:"
+         "\n"
+         "Serpent 2.1.29 (© Jaakko Leppänen, VTT)             ==┴╮╭┴==      \n"
+         "  _                   .-=-.           .-=-.          .-==-.       \n"
+         " { }      __        .' O o '.       .' O o '.       ╱  <*  )--<   \n"
+         " { }    .' O'.     ╱ o .-. O ╲     ╱ o .-. O ╲     ╱  .---`       \n"
+         " { }   ╱ .-. o╲   ╱O  ╱   ╲  o╲   ╱O  ╱   ╲  o╲   ╱O ╱            \n"
+         "  ╲ `-` ╱   ╲ O`-'o  ╱     ╲  O`-'o  ╱     ╲  O`-`o ╱             \n"
+         "   `-.-`     '.____.'       `._____.'       `.____.'              \n"
+         "Compatibility with subsequent Serpent versions is not guaranteed  \n"
+         "\n";
 }
 
 // External entry point for dynamic application loading
-extern "C" void ChrysalisApp__registerApps() { ChrysalisApp::registerApps(); }
+extern "C" void
+ChrysalisApp__registerApps()
+{
+  ChrysalisApp::registerApps();
+}
 void
 ChrysalisApp::registerApps()
 {
@@ -57,17 +55,23 @@ ChrysalisApp::registerApps()
 }
 
 // External entry point for dynamic object registration
-extern "C" void ChrysalisApp__registerObjects(Factory & factory) { ChrysalisApp::registerObjects(factory); }
+extern "C" void
+ChrysalisApp__registerObjects(Factory & factory)
+{
+  ChrysalisApp::registerObjects(factory);
+}
 void
 ChrysalisApp::registerObjects(Factory & factory)
 {
-  registerAuxKernel(TREATHeatAux);
-  registerKernel(TREATHeat);
-  registerVectorPostprocessor(ElementVariablesDifferenceVariance);
+  Registry::registerObjectsTo(factory, {"ChrysalisApp"});
 }
 
 // External entry point for dynamic syntax association
-extern "C" void ChrysalisApp__associateSyntax(Syntax & syntax, ActionFactory & action_factory) { ChrysalisApp::associateSyntax(syntax, action_factory); }
+extern "C" void
+ChrysalisApp__associateSyntax(Syntax & syntax, ActionFactory & action_factory)
+{
+  ChrysalisApp::associateSyntax(syntax, action_factory);
+}
 void
 ChrysalisApp::associateSyntax(Syntax & /*syntax*/, ActionFactory & /*action_factory*/)
 {

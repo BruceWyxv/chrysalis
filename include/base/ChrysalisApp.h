@@ -5,7 +5,7 @@
 
 class ChrysalisApp;
 
-template<>
+template <>
 InputParameters validParams<ChrysalisApp>();
 
 class ChrysalisApp : public MooseApp

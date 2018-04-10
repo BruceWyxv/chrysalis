@@ -2,6 +2,8 @@
 
 #include "math.h"
 
+registerMooseObject("ChrysalisApp", TREATHeatAux);
+
 const Real _ninety_log = log(0.9);
 
 template <>
@@ -13,22 +15,32 @@ validParams<TREATHeatAux>()
   params.addRequiredCoupledVar("in", "The temperature of the system");
 
   params.addRequiredParam<Point>("center", "The center of the fuel element");
-  params.addRangeCheckedParam<Real>("total_energy", "total_energy > 1", "The total energy that can be generated during a transient event");
-  params.addRangeCheckedParam<Real>("transient_duration", "transient_duration > 0.25", "The duration of the transient event");
-  params.addRangeCheckedParam<Real>("max_temperature", "max_temperature <= 925", "The maximum design temperature of the transient");
-  params.addRangeCheckedParam<Real>("initial_temperature", "initial_temperature >= 200", "The initial temperature (at which heat generation is maximum)");
+  params.addRangeCheckedParam<Real>(
+      "total_energy",
+      "total_energy > 1",
+      "The total energy that can be generated during a transient event");
+  params.addRangeCheckedParam<Real>(
+      "transient_duration", "transient_duration > 0.25", "The duration of the transient event");
+  params.addRangeCheckedParam<Real>("max_temperature",
+                                    "max_temperature <= 925",
+                                    "The maximum design temperature of the transient");
+  params.addRangeCheckedParam<Real>(
+      "initial_temperature",
+      "initial_temperature >= 200",
+      "The initial temperature (at which heat generation is maximum)");
 
   return params;
 }
 
 TREATHeatAux::TREATHeatAux(const InputParameters & parameters)
   : AuxKernel(parameters),
-    _element_length(120), // cm
+    _element_length(120),                        // cm
     _element_length_half(_element_length / 2.0), // cm
-    _element_widths(10), // cm
+    _element_widths(10),                         // cm
     _element_widths_half(_element_widths / 2.0), // cm
     _number_of_elements(19 * 19),
-    _total_volume(_number_of_elements * _element_widths * _element_widths * _element_length), // cm^3
+    _total_volume(_number_of_elements * _element_widths * _element_widths *
+                  _element_length), // cm^3
     _zero_power_radius(5 * sqrt(_element_widths * _element_widths)),
     _in(coupledValue("in")),
     _center(getParam<Point>("center")),
@@ -51,8 +63,11 @@ TREATHeatAux::computeValue()
 
   const Real axial_factor = cos(M_PI * pow(x / _element_length_half, 4) / 3);
   const Real radial_factor = 1 - sqrt(y * y + z * z) / _zero_power_radius;
-  const Real neutronic_heating = exp(-2.30258509299 * (_in[_qp] - _initial_temperature) / (_max_temperature - _initial_temperature)); // 10% heat generation at _max_temperature
-  const Real ramping = (_t <= _front_edge) ? (_t / _front_edge) : ((_t < _transient_duration) ? 1.0 : 1e-4);
+  const Real neutronic_heating =
+      exp(-2.30258509299 * (_in[_qp] - _initial_temperature) /
+          (_max_temperature - _initial_temperature)); // 10% heat generation at _max_temperature
+  const Real ramping =
+      (_t <= _front_edge) ? (_t / _front_edge) : ((_t < _transient_duration) ? 1.0 : 1e-4);
 
   return _max_heating_rate * ramping * neutronic_heating * axial_factor * radial_factor;
 }

@@ -32,7 +32,7 @@ protected:
   virtual Real computeValue() override;
 
   const VariableValue & _in;
-  
+
   const Point _center;
   const Real _total_energy;
   const Real _transient_duration;

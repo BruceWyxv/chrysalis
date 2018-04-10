@@ -6,6 +6,8 @@
 // libMesh includes
 #include "libmesh/quadrature.h"
 
+registerMooseObject("ChrysalisApp", ElementVariablesDifferenceVariance);
+
 template <>
 InputParameters
 validParams<ElementVariablesDifferenceVariance>()
@@ -22,7 +24,8 @@ validParams<ElementVariablesDifferenceVariance>()
   return params;
 }
 
-ElementVariablesDifferenceVariance::ElementVariablesDifferenceVariance(const InputParameters & parameters)
+ElementVariablesDifferenceVariance::ElementVariablesDifferenceVariance(
+    const InputParameters & parameters)
   : ElementVectorPostprocessor(parameters),
     _a(coupledValue("compare_a")),
     _b(coupledValue("compare_b")),
@@ -36,7 +39,8 @@ ElementVariablesDifferenceVariance::ElementVariablesDifferenceVariance(const Inp
 void
 ElementVariablesDifferenceVariance::execute()
 {
-  // Algorithm adapted from https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Weighted_incremental_algorithm
+  // Algorithm adapted from
+  // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Weighted_incremental_algorithm
   for (unsigned int qp = 0; qp < _qrule->n_points(); ++qp)
   {
     const Real difference = _a[qp] - _b[qp];
@@ -65,18 +69,34 @@ ElementVariablesDifferenceVariance::finalize()
   {
     // Get everything from everyone
     MPI_Allgather(&_running_mean, 1, MPI_REAL, &all_mean[0], 1, MPI_REAL, _communicator.get());
-    MPI_Allgather(&_running_sum_squares, 1, MPI_REAL, &all_sum_squares[0], 1, MPI_REAL, _communicator.get());
-    MPI_Allgather(&_running_weight_sum, 1, MPI_REAL, &all_weight_sum[0], 1, MPI_REAL, _communicator.get());
-    MPI_Allgather(&_running_weight_sum_squares, 1, MPI_REAL, &all_weight_sum_squares[0], 1, MPI_REAL, _communicator.get());
+    MPI_Allgather(
+        &_running_sum_squares, 1, MPI_REAL, &all_sum_squares[0], 1, MPI_REAL, _communicator.get());
+    MPI_Allgather(
+        &_running_weight_sum, 1, MPI_REAL, &all_weight_sum[0], 1, MPI_REAL, _communicator.get());
+    MPI_Allgather(&_running_weight_sum_squares,
+                  1,
+                  MPI_REAL,
+                  &all_weight_sum_squares[0],
+                  1,
+                  MPI_REAL,
+                  _communicator.get());
 
     // Combine everything
     for (std::size_t i = 1; i < number_of_processors; ++i)
-      combineResults(all_mean[0], all_sum_squares[0], all_weight_sum[0], all_weight_sum_squares[0], all_mean[i], all_sum_squares[i], all_weight_sum[i], all_weight_sum_squares[i]);
+      combineResults(all_mean[0],
+                     all_sum_squares[0],
+                     all_weight_sum[0],
+                     all_weight_sum_squares[0],
+                     all_mean[i],
+                     all_sum_squares[i],
+                     all_weight_sum[i],
+                     all_weight_sum_squares[i]);
   }
 
   // Use the reliability weight algorithm for calculating the variance
   _final_mean[0] = all_mean[0];
-  _final_variance[0] = all_sum_squares[0] / (all_weight_sum[0] - all_weight_sum_squares[0] / all_weight_sum[0]);
+  _final_variance[0] =
+      all_sum_squares[0] / (all_weight_sum[0] - all_weight_sum_squares[0] / all_weight_sum[0]);
 }
 
 void
@@ -114,12 +134,14 @@ ElementVariablesDifferenceVariance::combineResults(Real & mean,
                                                    const Real weight_sum_other,
                                                    const Real weight_sum_squares_other)
 {
-  // Algorithm adapted from https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
+  // Algorithm adapted from
+  // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
   const Real delta_mean = mean - mean_other;
   const Real total_weight = weight_sum + weight_sum_other;
 
   mean = ((weight_sum * mean) + (weight_sum_other * mean_other)) / total_weight;
-  sum_squares += sum_squares_other + delta_mean * delta_mean * (weight_sum * weight_sum_other) / total_weight;
+  sum_squares +=
+      sum_squares_other + delta_mean * delta_mean * (weight_sum * weight_sum_other) / total_weight;
   weight_sum = total_weight;
   weight_sum_squares += weight_sum_squares_other;
 }

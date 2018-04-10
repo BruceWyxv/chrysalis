@@ -1,5 +1,7 @@
 #include "KeepItTheSameAux.h"
 
+registerMooseObject("ChrysalisApp", KeepItTheSameAux);
+
 template <>
 InputParameters
 validParams<KeepItTheSameAux>()
@@ -9,8 +11,7 @@ validParams<KeepItTheSameAux>()
   return params;
 }
 
-KeepItTheSameAux::KeepItTheSameAux(const InputParameters & parameters)
-  : AuxKernel(parameters)
+KeepItTheSameAux::KeepItTheSameAux(const InputParameters & parameters) : AuxKernel(parameters)
 {
   // Nothing here
 }
