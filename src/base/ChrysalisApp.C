@@ -5,6 +5,9 @@
 #include "ModulesApp.h"
 #include "MooseSyntax.h"
 
+#include "header.h"
+#define SV CODE_VERSION
+
 template <>
 InputParameters
 validParams<ChrysalisApp>()
@@ -29,17 +32,16 @@ ChrysalisApp::~ChrysalisApp() {}
 std::string
 ChrysalisApp::header() const
 {
-  return "MOOSE Wrapper for:"
-         "\n"
-         "Serpent 2.1.29 (© Jaakko Leppänen, VTT)             ==┴╮╭┴==      \n"
-         "  _                   .-=-.           .-=-.          .-==-.       \n"
-         " { }      __        .' O o '.       .' O o '.       ╱  <*  )--<   \n"
-         " { }    .' O'.     ╱ o .-. O ╲     ╱ o .-. O ╲     ╱  .---`       \n"
-         " { }   ╱ .-. o╲   ╱O  ╱   ╲  o╲   ╱O  ╱   ╲  o╲   ╱O ╱            \n"
-         "  ╲ `-` ╱   ╲ O`-'o  ╱     ╲  O`-'o  ╱     ╲  O`-`o ╱             \n"
-         "   `-.-`     '.____.'       `._____.'       `.____.'              \n"
-         "Compatibility with subsequent Serpent versions is not guaranteed  \n"
-         "\n";
+  return "Chrysalis includes a MOOSE Wrapper for:\n"
+         "Serpent " SV " (© Jaakko Leppänen, VTT)             ==┴╮ ╭┴==     \n"
+         "  _                   .-=-.           .-=-.          .-===-.      \n"
+         " { }      __        .' O o '.       .' O o '.       ╱   <*  )--<  \n"
+         " { }    .' O'.     ╱ o .-. O ╲     ╱ o .-. O ╲     ╱ o .---`      \n"
+         " { }   ╱ .-. o╲   ╱O  ╱   ╲  o╲   ╱O  ╱   ╲  o╲   ╱O  ╱           \n"
+         "  ╲ `-` ╱   ╲ O`-'o  ╱     ╲  O`-'o  ╱     ╲  O`-`o  ╱            \n"
+         "   `-.-`     '.____.'       `._____.'       `._____.'             \n"
+         "Original wrapper was written for Serpent 2.1.30.\n"
+         "Compatibility with future Serpent versions is not guaranteed (but likely).\n\n";
 }
 
 // External entry point for dynamic application loading

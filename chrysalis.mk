@@ -163,6 +163,7 @@ pre_install_notifications:
 # Serpent files correctly
 
 clean::
+	@rm -f $(SERPENT_SRC)
 	@rm -f $(SERPENT_LIB)
 	@rm -f $(SERPENT_DEPS)
 	@rm -f $(SERPENT_OBJ)

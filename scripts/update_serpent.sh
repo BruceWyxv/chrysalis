@@ -71,16 +71,34 @@ if [[ "${PATCH_HEADER}" -ne 0 ]]; then
   for file in *.h; do
     # Only patch files that are suspect of being unmodified
     if [[ ! ${file} -nt ${SERPENT_HOME}/${file} ]]; then
+      # There are some special things that need to be done for header.h
       if [[ "${file}" == "header.h" ]]; then
         # Remove some definitions already made in MOOSE
         sed -i.old '/GNU_SOURCE/ s;^;//;' header.h
+
         # Put header.h in an extern "C" block and use the internal definition of _XOPEN_SOURCE
         sed -i.old '1s;^;#undef _XOPEN_SOURCE\n#ifdef __cplusplus\nextern "C"{\n#endif\n\n;' header.h
         printf "#ifdef __cplusplus\n}\n#endif\n\n#undef _XOPEN_SOURCE\n#define _XOPEN_SOURCE 700" >> header.h
-      fi
+
+        # Prevent multiple declarations of global variables and structs
+        start="Global arrays and variables"
+        # This shouldn't appear anywere, so the scan should go through to the end-of-file
+        end="EOF"
+        # These are all the variable types (and the "int mpi*" cases) that need protected
+        match="\(double \*\|char \*\|unsigned long\|FILE \*\|int mpi\|struct {\)"
+        # Prepend "extern" **only** when compiling in C++ mode. This causes a definition to be
+        # created by the C compiler when building the library. Conversely, only a declaration is
+        # made to the C++ compiler when including header.h in a C++ file.
+        prepend="#ifdef __cplusplus\n""extern""\n#endif\n"
+        # Make the magic happen with sed
+        sed -i.old "/${start}/,/${end}/{/${match}/s/^/${prepend}/}" header.h
+       fi
 
       # Place an include guard on all header files
-      sed -i.old '1s;^;#pragma once\n\n;' ${file}
+      guard=${file//./_}
+      guard=${guard^^}
+      sed -i.old "1s;^;#ifndef ${guard}\n#define ${guard}\n\n;" ${file}
+      printf "\n\n#endif // ${guard}\n" >> ${file}
       rm ${file}.old
     fi
   done
