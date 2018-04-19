@@ -1,9 +1,9 @@
 #ifndef SERPENTEXECUTIONER_H
 #define SERPENTEXECUTIONER_H
 
-#include "FXExecutioner.h"
+#include "FunctionInterface.h"
 
-#include "MutableCoefficientsInterface.h"
+#include "FXExecutioner.h"
 
 class SerpentExecutioner;
 class Function;
@@ -17,7 +17,7 @@ InputParameters validParams<SerpentExecutioner>();
  *   2) Generating the power/density multiphysics input files
  *   3) Parsing the fission power density output file from each iteration
  */
-class SerpentExecutioner : public FXExecutioner
+class SerpentExecutioner : public FXExecutioner, FunctionInterface
 {
 public:
   SerpentExecutioner(const InputParameters & parameters);
@@ -38,7 +38,7 @@ protected:
    */
   virtual void init() override;
 
-private:
+protected:
   /// A unique identifier for each instance that should work for split processes and MPI ranks
   const std::string _unique;
 
@@ -109,14 +109,20 @@ private:
   /// the current step and #P is the number of Picard iterations at time step #P
   const bool _keep_files;
 
-  /// A boolean tha defines whether the value of _power_level represents an average or scaling
-  const bool _is_power_level_an_average;
-
   /// A boolean that specifies where to request the power density FETs
   const bool _request_fission_power_in_density_file;
 
-  /// A function that defines the power level, may be a constant value or user-defined
-  std::shared_ptr<Function> _power_level;
+  /// A boolean that defines whether the power level is an average or scaling
+  const bool _is_power_level_an_average;
+
+  /// A boolean that defines whether the power level is constant or time-varying
+  const bool _is_power_level_time_varying;
+
+  /// A fixed value that defines the power level
+  const Real _const_power_level;
+
+  /// A Function that defines a power level
+  Function * const _function_power_level;
 
   /**
    * Return the MooseEnum for the FE type corresponding to the FE definition ID
@@ -132,6 +138,11 @@ private:
    * Get the string that corresponds to the keep_files file name tracking component
    */
   std::string getTrackingFileNameComponent() const;
+
+  /**
+   * Creates and returns a constant-valued function
+   */
+  std::shared_ptr<Function> makeConstantFunction(const Real const_value) const;
 
   /**
    * Generate a string that is unique for each instance based on any threading and MPI ranks

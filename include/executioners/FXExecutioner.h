@@ -15,6 +15,9 @@ class FXExecutioner : public Transient, public MutableCoefficientsInterface
 public:
   FXExecutioner(const InputParameters & parameters);
 
+  // Using declarations
+  using Transient::_console;
+
 protected:
   /**
    * Must be defined by an implementor to export the coefficients from the coefficient array into a

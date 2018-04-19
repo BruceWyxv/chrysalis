@@ -2,6 +2,8 @@
 #include <fstream>
 #include <iostream>
 
+#include "Function.h"
+
 #include "SerpentExecutioner.h"
 #include "SerpentTimeStepper.h"
 
@@ -20,24 +22,32 @@ validParams<SerpentExecutioner>()
 
   params += validParams<MutableCoefficientsInterface>();
 
-  params.addClassDescription("Executioner for coupling to the Serpent Reactor Physics MC code "
-                             "developed at VTT, Finland");
+  params.addClassDescription("Executioner for coupling to the Serpent Reactor Physics MC code");
 
   MooseEnum fe_types("Cartesian Cylindrical", "Cylindrical");
   std::vector<Real> empty;
 
+  /*
+   * Enable different FE defitions
+   */
+  // FE 1
   params.addParam<MooseEnum>("fe1_type", fe_types, "FE definition 1: type");
   params.addRequiredParam<std::vector<Real>>(
       "fe1_params", "FE definition 1: order and dimensions as used by Serpent");
-
+  // FE 2
   params.addParam<MooseEnum>("fe2_type", fe_types, "FE definition 2: function series type");
   params.addParam<std::vector<Real>>(
       "fe2_params", empty, "FE definition 2: order and dimensions as used by Serpent");
-
+  // FE 3
   params.addParam<MooseEnum>("fe3_type", fe_types, "FE definition 3: function series type");
   params.addParam<std::vector<Real>>(
       "fe3_params", empty, "FE definition 3: order and dimensions as used by Serpent");
+  params.addParamNamesToGroup("fe1_type fe1_params fe2_type fe2_params fe3_type fe3_params",
+                              "FE Definitions");
 
+  /*
+   * Correlate an import/export with an FE definition
+   */
   params.addParam<unsigned int>("import_fet",
                                 1,
                                 "Specifies which FE definition should be used for the fission "
@@ -53,7 +63,12 @@ validParams<SerpentExecutioner>()
                                 "Specifies which FE definition should be used for the temperature "
                                 "FE that will be exported to Serpent (defaults to '1'). The same "
                                 "FE definition can be reused if appropriate.");
+  params.addParamNamesToGroup("import_fet density_fe temperature_fe",
+                              "Import/Export FE Correlations");
 
+  /*
+   * Files for interfacing
+   */
   params.addRequiredParam<std::string>(
       "serpent_input",
       "Name of the main Serpent input file to be used as a template for creating the multiphysics "
@@ -73,6 +88,23 @@ validParams<SerpentExecutioner>()
                                "temperature values in. This corresponds to the line \"ifc "
                                "'file_name'.ifc\" in the Serpent input, with an interface type of "
                                "'" STR(IFC_TYPE_FET_TEMP) "'.");
+  params.addParam<std::string>("serpent_fission_power_file",
+                               "fet",
+                               "The name of the file to which Serpent should write the fission "
+                               "power FETs as \"'file_name'.pwr\".");
+  params.addParam<std::string>("signal_file_base",
+                               ".serpent_posix",
+                               "The base name of the file to be used to pass signals between MOOSE "
+                               "and Serpent. The actual file will be generated from this base name "
+                               "using a guaranteed unique identifier for this Executioner "
+                               "instance.");
+  params.addParamNamesToGroup("serpent_input serpent_density_file serpent_temperature_file "
+                              "serpent_fission_power_file signal_file_base",
+                              "Interface Files");
+
+  /*
+   * Serpent interface materials
+   */
   params.addRequiredParam<std::string>(
       "serpent_otf_material",
       "The name of the Serpent material that will be affected on-the-fly by the exported FE.");
@@ -80,18 +112,12 @@ validParams<SerpentExecutioner>()
                                        "The outermost material of a pin structure in Serpent, used "
                                        "to identify the pin(s) where the FET power scoring should "
                                        "be performed.");
-  params.addParam<std::string>("serpent_fission_power_file",
-                               "fet",
-                               "The name of the file to which Serpent should write the fission "
-                               "power FETs as \"'file_name'.pwr\".");
+  params.addParamNamesToGroup("serpent_otf_material serpent_fission_power_outermost_material",
+                              "Serpent Interface Materials");
 
-  params.addParam<std::string>("signal_file_base",
-                               ".serpent_posix",
-                               "The base name of the file to be used to pass signals between MOOSE "
-                               "and Serpent. The actual file will be generated from this base name "
-                               "using a guaranteed unique identifier for this Executioner "
-                               "instance.");
-
+  /*
+   * Scaling of the fission power density
+   */
   params.addParam<Real>(
       "average_power_level_const",
       "Average power to which the fission power density FETs should be normalized.");
@@ -103,15 +129,31 @@ validParams<SerpentExecutioner>()
   params.addParam<FunctionName>("scale_power_level_function",
                                 "A function describing the time-dependent value by which the "
                                 "fission power density FETs should be scaled.");
+  params.addParamNamesToGroup("average_power_level_const scale_power_level_const "
+                              "average_power_level_function scale_power_level_function",
+                              "Power Scaling");
 
+  /*
+   * Preserve history
+   */
   params.addParam<bool>(
       "keep_files", false, "Keep all the files generated for manual inspection later.");
+
+  /*
+   * Hide meaningless parameters from the user in this context of wraping Serpent
+   */
+  params.suppressParameter<unsigned int>("picard_max_its");
+  params.suppressParameter<Real>("picard_rel_tol");
+  params.suppressParameter<Real>("picard_abs_tol");
+  params.suppressParameter<Real>("relaxation_factor");
+  params.suppressParameter<std::vector<std::string>>("relaxed_variables");
 
   return params;
 }
 
 SerpentExecutioner::SerpentExecutioner(const InputParameters & parameters)
   : FXExecutioner(parameters),
+    FunctionInterface(this),
     _unique(Transient::declareRecoverableData<std::string>("unique", makeOmpMpiUnique())),
     _fe1_type(getParam<MooseEnum>("fe1_type")),
     _fe2_type(getParam<MooseEnum>("fe2_type")),
@@ -141,18 +183,96 @@ SerpentExecutioner::SerpentExecutioner(const InputParameters & parameters)
         getParam<std::string>("serpent_fission_power_file")),
     _posix_file_base(makePosixFileName(getParam<std::string>("signal_file_base"), _unique)),
     _keep_files(""),
+    _request_fission_power_in_density_file(!_serpent_interface_density_file_name.empty()),
     _is_power_level_an_average(isParamValid("average_power_level_const") ||
                                isParamValid("average_power_level_function")),
-    _request_fission_power_in_density_file(!_serpent_interface_density_file_name.empty())
+    _is_power_level_time_varying(isParamValid("average_power_level_function") ||
+                                 isParamValid("scale_power_level_function")),
+    _const_power_level(_is_power_level_time_varying
+                           ? -1.0
+                           : (_is_power_level_an_average
+                                  ? getParam<Real>("average_power_level_const")
+                                  : (isParamValid("scale_power_level_const")
+                                         ? getParam<Real>("average_power_level_const")
+                                         : 1.0))),
+    _function_power_level(
+        _is_power_level_time_varying
+            ? (_is_power_level_an_average
+                   ? &getFunctionByName(getParam<FunctionName>("average_power_level_function"))
+                   : &getFunctionByName(getParam<FunctionName>("scale_power_level_function")))
+            : NULL)
 {
+  /*
+   * Ensure sanity for the interface file names
+   */
+  // Ensure that a Serpent interface file was specified
   if (_serpent_interface_density_file_name.empty() &&
       _serpent_interface_temperature_file_name.empty())
     mooseError("Either \"serpent_density_file\" or \"serpent_temperature_file\" must be set!");
-
+  // An error if both interface files are defined
   if (!_serpent_interface_density_file_name.empty() &&
       !_serpent_interface_temperature_file_name.empty())
     mooseError("Sorry, only one FE type can currently be exported. Please select only 'density' or "
                "'temperature'.");
+
+  /*
+   * Ensure sanity of the power levels
+   */
+  // If we are using a constant power level then ensure that it is sensible
+  if (_const_power_level <= 0.0 && !_is_power_level_time_varying)
+  {
+    if (_is_power_level_an_average)
+      paramError("average_power_level_const", "Cannot have a negative power level!");
+    else
+      paramError("scale_power_level_const", "Cannot have a negative power level!");
+  }
+
+  /*
+   * Ensure that we don't have multiple power level specifications
+   */
+  // Check to see if both constant options are defined. If both are defined then we will assume that
+  // the average form is preferred and flag the scale definition.
+  if (isParamValid("average_power_level_const") && isParamValid("scale_power_level_const"))
+    paramError("scale_power_level_const",
+               "Both averaging and scaling power levels constants are defined but only one can be "
+               "used. Please remove or comment-out the parameter that is not to be used.");
+  // Check to see if both function options are defined. If both are defined then we will assume that
+  // the average form is preferred and flag the scale definition.
+  if (isParamValid("average_power_level_function") && isParamValid("scale_power_level_function"))
+    paramError("scale_power_level_function",
+               "Both averaging and scaling power levels functions are defined but only one can be "
+               "used. Please remove or comment-out the parameter that is not to be used.");
+  // Check to see if at least one constant and function are both defined. If both are defined then
+  // we will assume that the function-based form is the preferred option and flag the constant.
+  if (_const_power_level > 0.0 && _function_power_level)
+  {
+    if (isParamValid("average_power_level_const"))
+    {
+      if (isParamValid("average_power_level_function"))
+        paramError("average_power_level_const",
+                   "Both constant and function-based averaging power levels are defined but only "
+                   "one can be used. Please remove of comment-out the parameter that is not to be "
+                   "used.");
+      else // isParamValid("scale_power_level_function")
+        paramError("average_power_level_const",
+                   "Both averaging constant and scaling function-based power levels are defined "
+                   "but only one can be used. Please remove of comment-out the parameter that is "
+                   "not to be used.");
+    }
+    else // isParamValid("scale_power_level_const")
+    {
+      if (isParamValid("average_power_level_function"))
+        paramError("scale_power_level_const",
+                   "Both scaling constant and averaging function-based power levels are defined "
+                   "but only one can be used. Please remove of comment-out the parameter that is "
+                   "not to be used.");
+      else // isParamValid("scale_power_level_function")
+        paramError("scale_power_level_const",
+                   "Both constant and function-based scaling power levels are defined but only one "
+                   "can be used. Please remove of comment-out the parameter that is not to be "
+                   "used.");
+    }
+  }
 }
 
 void
@@ -208,13 +328,15 @@ SerpentExecutioner::exportCoefficients(const std::vector<Real> & out_coefficient
                                          : _temperature_fe_definition_id));
   const std::string tracking = getTrackingFileNameComponent();
 
-  /* Generate the export file name and then open it for writing */
+  // Generate the export file name and then open it for writing
   formatter.str(file_base);
   formatter << tracking << ".ifc";
   const std::string export_file_name = formatter.str();
   writer.open(export_file_name, std::ios::out | std::ios::trunc);
 
-  /* Write the basic Serpent parameters */
+  /*
+   * Write the basic Serpent parameters
+   */
   if (!writer.is_open())
   {
     perror(("Error opening the FE export file '" + export_file_name + "'").c_str());
@@ -222,34 +344,35 @@ SerpentExecutioner::exportCoefficients(const std::vector<Real> & out_coefficient
   }
   else
   {
-    /* The interface type */
+    // The interface type
     writer << (_request_fission_power_in_density_file ? IFC_TYPE_FET_DENSITY : IFC_TYPE_FET_TEMP);
-    /* The FE type */
+    // The FE type
     if (type == "Cartesian")
       writer << " " << FET_TYPE_CARTESIAN;
     else
       writer << " " << FET_TYPE_CYLINDRICAL;
-    /* The feedback material */
+    // The feedback material
     writer << " " << _serpent_otf_material;
     /* Generate an fission power density output in the pin identified by the outermost material */
     writer << " " << YES;
     writer << " " << _serpent_fission_power_outermost_material;
     writer << "\n";
 
-    /* Write the scoring parameters */
-    /* The fission power density FET file name */
+    /*
+     * Write the scoring parameters
+     */
+    // The fission power density FET file name
     writer << getFissionPowerDensityFileName();
-    /* Duplicate the same FE parameters for both the input and the output ? */
+    // Duplicate the same FE parameters for both the input and the output?
     if (identical_fe_definitions)
       writer << " " << YES;
     else
       writer << " " << NO;
-    /* Write the imported FET parameters */
+    // Write the imported FET parameters
     for (const auto & param : _import_fet_params)
       writer << " " << param;
     writer << "\n";
-
-    /* Write the non-identical exported parameters, if required */
+    // Write the non-identical exported parameters, if required
     if (!identical_fe_definitions)
     {
       for (const auto & param : params)
@@ -257,18 +380,22 @@ SerpentExecutioner::exportCoefficients(const std::vector<Real> & out_coefficient
       writer << "\n";
     }
 
-    /* Write out the exported FE coefficients */
+    /*
+     * Write out the exported FE coefficients
+     */
     for (const auto & coefficient : out_coefficients)
       writer << coefficient << "\n";
   }
 
-  /* Close the export file */
+  // Close the export file
   writer.close();
 
-  /* Create the main Serpent input file as required */
+  /*
+   * Create the main Serpent input file as required
+   */
   if (_first || _keep_files)
   {
-    /* Open the template main input file */
+    // Open the template main input file
     reader.open(_serpent_input_template_name);
 
     if (!reader.is_open())
@@ -279,13 +406,13 @@ SerpentExecutioner::exportCoefficients(const std::vector<Real> & out_coefficient
     }
     else
     {
-      /* Create the file name of the main Serpent input file then open it for writing */
+      // Create the file name of the main Serpent input file then open it for writing
       formatter.str(_serpent_input_template_name);
       formatter << _unique << ".moose";
       const std::string main_file_name = formatter.str();
       writer.open(main_file_name, std::ios::out | std::ios::trunc);
 
-      /* Write the main input file */
+      // Write the main input file
       if (!writer.is_open())
       {
         perror(("Error opening the main Serpent input file " + main_file_name + "'").c_str());
@@ -293,10 +420,10 @@ SerpentExecutioner::exportCoefficients(const std::vector<Real> & out_coefficient
       }
       else
       {
-        /* Copy the body of the template input file */
+        // Copy the body of the template input file
         writer << reader.rdbuf();
 
-        /* Add in the coupling commands */
+        // Add in the coupling commands
         writer << "\n\n%% ==== START ==== Autogenerated multiphysics section ==== START ====\n";
         writer << "%%\tMultiphysics interface file\n";
         writer << "ifc " << export_file_name << "\n";
@@ -305,11 +432,11 @@ SerpentExecutioner::exportCoefficients(const std::vector<Real> & out_coefficient
         writer << "\n%% ====  END  ==== Autogenerated multiphysics section ====  END  ====\n";
       }
 
-      /* Close the main input file */
+      // Close the main input file
       writer.close();
     }
 
-    /* Close the template input file */
+    // Close the template input file
     reader.close();
   }
 }
@@ -359,6 +486,7 @@ SerpentExecutioner::importCoefficients(std::vector<Real> & array_to_fill)
 {
   // Get the FET coefficients from Serpent here
   const std::string coefficient_file = getFissionPowerDensityFileName();
+  Real multiplier = -1;
   std::ifstream reader;
 
   reader.open(coefficient_file);
@@ -389,13 +517,35 @@ SerpentExecutioner::importCoefficients(std::vector<Real> & array_to_fill)
               if (reader.bad())
                 break;
 
-              // Only one region is currently supported, so skip any other regions
+              // This is the first data line read, so set up any required parameters
               if (first_region < 0)
+              {
+                // Capture the ID of the first found region
                 first_region = region;
-              else if (region != first_region)
-                break;
 
-              array_to_fill.push_back(coefficient);
+                // Ensure the FE data is sane
+                if (linear_index != 0)
+                  mooseError("The first found coefficient in '%s' is not a zeroth-order "
+                             "coefficient. This is very bad so we will exit now.");
+
+                // Calculate the multiplier
+                if (_is_power_level_time_varying)
+                  multiplier = _function_power_level->value(_time, Point(0));
+                else
+                  multiplier = _const_power_level;
+                // Adjust the multiplier if we are generating an average value based on the value of
+                // the zeroth-order coefficient
+                if (_is_power_level_an_average)
+                  multiplier /= coefficient;
+
+                _console << COLOR_BLUE << "\nMultiplying the fission power density FET by "
+                         << std::setprecision(6) << multiplier << "\n"
+                         << COLOR_DEFAULT << std::endl;
+              }
+              else if (region != first_region)
+                break; // Only one region is currently supported, so exit if another region is found
+
+              array_to_fill.push_back(coefficient * multiplier);
             }
 
     if (reader.bad())
