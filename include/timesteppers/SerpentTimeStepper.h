@@ -28,6 +28,12 @@ protected:
 private:
   /// The first Serpent run must be handled differently
   bool _first_run;
+
+  /// The number of MPI tasks with which to run Serpent
+  const long _serpent_mpi_tasks;
+
+  /// The number of OpenMP threads with which to run Serpent
+  const int _serpent_omp_threads;
 };
 
 #endif // SERPENTTIMESTEPPER_H

@@ -62,6 +62,7 @@ MESSAGE_MPI         := - Compiling without MPI support
 else
 MESSAGE_MPI         := - MPI compiler detected! Compiling with MPI support
 SERPENT_CFLAGS      += -DMPI
+ADDITIONAL_CPPFLAGS += -DSERPENT_MPI_AVAILABLE
 endif
 
 # OpenMP
@@ -70,6 +71,7 @@ MESSAGE_OPENMP      := - Compiling for single-thread operations
 else
 MESSAGE_OPENMP      := - OpenMP libraries found! Compiling with OpenMP support
 SERPENT_CFLAGS      += -DOPEN_MP
+ADDITIONAL_CPPFLAGS += -DSERPENT_OPENMP_AVAILABLE
 endif
 
 # Graphics
