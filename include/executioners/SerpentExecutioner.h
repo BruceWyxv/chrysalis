@@ -5,8 +5,9 @@
 
 #include "FXExecutioner.h"
 
-class SerpentExecutioner;
 class Function;
+class SerpentExecutioner;
+class SerpentTimeStepper;
 
 template <>
 InputParameters validParams<SerpentExecutioner>();
@@ -34,14 +35,11 @@ protected:
   virtual void importCoefficients(std::vector<Real> & array_to_fill) override;
 
   /**
-   * Sets the default TimeStepper to SerpentTimeSteper, then calls Transient::init()
+   * Sets the default TimeStepper to SerpentTimeStepper if needed, then calls Transient::init()
    */
   virtual void init() override;
 
 protected:
-  /// A unique identifier for each instance that should work for split processes and MPI ranks
-  const std::string _unique;
-
   /// One of three possible FE definitions, specifies the type
   const MooseEnum _fe1_type;
 
@@ -82,9 +80,6 @@ protected:
   /// reference is used so that the same definition can be transparently reused for multiple FEs.
   const std::vector<Real> & _temperature_fe_params;
 
-  /// Name of the main Serpent input file name
-  const std::string _serpent_input_template_name;
-
   /// Name of the multiphysics interface file for density
   const std::string _serpent_interface_density_file_name;
 
@@ -101,9 +96,6 @@ protected:
 
   /// Name of the multiphysics interface file for fission power density
   const std::string _serpent_interface_fission_power_density_file_name;
-
-  /// Base of the file name to be used to communicate between Serpent and MOOSE
-  const std::string _posix_file_base;
 
   /// Keeps all the files by creating files with the following format: file_name_#S_#P, where #S is
   /// the current step and #P is the number of Picard iterations at time step #P
@@ -135,24 +127,14 @@ protected:
   std::string getFissionPowerDensityFileName() const;
 
   /**
+   * Returns the time stepper as a SerpentTimeStepper reference
+   */
+  const SerpentTimeStepper & getMySerpentTimeStepper() const;
+
+  /**
    * Get the string that corresponds to the keep_files file name tracking component
    */
   std::string getTrackingFileNameComponent() const;
-
-  /**
-   * Creates and returns a constant-valued function
-   */
-  std::shared_ptr<Function> makeConstantFunction(const Real const_value) const;
-
-  /**
-   * Generate a string that is unique for each instance based on any threading and MPI ranks
-   */
-  static std::string makeOmpMpiUnique();
-
-  /**
-   * Make a guaranteed unique name for each instance of SerpentExecutioner
-   */
-  static std::string makePosixFileName(const std::string & file_base, const std::string & unique);
 };
 
 #endif // SERPENTEXECUTIONER_H
