@@ -24,48 +24,6 @@ validParams<SerpentExecutioner>()
 
   params.addClassDescription("Executioner for coupling to the Serpent Reactor Physics MC code");
 
-  MooseEnum fe_types("Cartesian Cylindrical", "Cylindrical");
-  std::vector<Real> empty;
-
-  /*
-   * Enable different FE defitions
-   */
-  // FE 1
-  params.addParam<MooseEnum>("fe1_type", fe_types, "FE definition 1: type");
-  params.addRequiredParam<std::vector<Real>>(
-      "fe1_params", "FE definition 1: order and dimensions as used by Serpent");
-  // FE 2
-  params.addParam<MooseEnum>("fe2_type", fe_types, "FE definition 2: function series type");
-  params.addParam<std::vector<Real>>(
-      "fe2_params", empty, "FE definition 2: order and dimensions as used by Serpent");
-  // FE 3
-  params.addParam<MooseEnum>("fe3_type", fe_types, "FE definition 3: function series type");
-  params.addParam<std::vector<Real>>(
-      "fe3_params", empty, "FE definition 3: order and dimensions as used by Serpent");
-  params.addParamNamesToGroup("fe1_type fe1_params fe2_type fe2_params fe3_type fe3_params",
-                              "FE Definitions");
-
-  /*
-   * Correlate an import/export with an FE definition
-   */
-  params.addParam<unsigned int>("import_fet",
-                                1,
-                                "Specifies which FE definition should be used for the fission "
-                                "power density FET that will be produced by Serpent (defaults to "
-                                "'1'). The same FE definition can be reused if appropriate.");
-  params.addParam<unsigned int>("density_fe",
-                                1,
-                                "Specifies which FE definition should be used for the density FE "
-                                "that will be exported to Serpent (defaults to '1'). The same FE "
-                                "definition can be reused if appropriate.");
-  params.addParam<unsigned int>("temperature_fe",
-                                1,
-                                "Specifies which FE definition should be used for the temperature "
-                                "FE that will be exported to Serpent (defaults to '1'). The same "
-                                "FE definition can be reused if appropriate.");
-  params.addParamNamesToGroup("import_fet density_fe temperature_fe",
-                              "Import/Export FE Correlations");
-
   /*
    * Files for interfacing
    */
@@ -177,24 +135,6 @@ validParams<SerpentExecutioner>()
 SerpentExecutioner::SerpentExecutioner(const InputParameters & parameters)
   : FXExecutioner(parameters),
     FunctionInterface(this),
-    _fe1_type(getParam<MooseEnum>("fe1_type")),
-    _fe2_type(getParam<MooseEnum>("fe2_type")),
-    _fe3_type(getParam<MooseEnum>("fe3_type")),
-    _fe1_params(getParam<std::vector<Real>>("fe1_params")),
-    _fe2_params(getParam<std::vector<Real>>("fe2_params")),
-    _fe3_params(getParam<std::vector<Real>>("fe3_params")),
-    _import_fet_definition_id(getParam<unsigned int>("import_fet")),
-    _density_fe_definition_id(getParam<unsigned int>("density_fe")),
-    _temperature_fe_definition_id(getParam<unsigned int>("temperature_fe")),
-    _import_fet_params(_import_fet_definition_id == 1
-                           ? _fe1_params
-                           : (_import_fet_definition_id == 2 ? _fe2_params : _fe3_params)),
-    _density_fe_params(_density_fe_definition_id == 1
-                           ? _fe1_params
-                           : (_density_fe_definition_id == 2 ? _fe2_params : _fe3_params)),
-    _temperature_fe_params(_temperature_fe_definition_id == 1
-                               ? _fe1_params
-                               : (_temperature_fe_definition_id == 2 ? _fe2_params : _fe3_params)),
     _serpent_interface_density_file_name(getParam<std::string>("serpent_density_file")),
     _serpent_interface_temperature_file_name(getParam<std::string>("serpent_temperature_file")),
     _serpent_otf_material(getParam<std::string>("serpent_otf_material")),
@@ -369,18 +309,9 @@ SerpentExecutioner::exportCoefficients(const std::vector<Real> & out_coefficient
   std::ifstream reader;
   std::ofstream writer;
 
-  const MooseEnum & type = _request_fission_power_in_density_file
-                               ? getFEDefinitionType(_density_fe_definition_id)
-                               : getFEDefinitionType(_temperature_fe_definition_id);
-  const std::vector<Real> & params =
-      _request_fission_power_in_density_file ? _density_fe_params : _temperature_fe_params;
   const std::string file_base = _request_fission_power_in_density_file
                                     ? _serpent_interface_density_file_name
                                     : _serpent_interface_temperature_file_name;
-  const bool identical_fe_definitions =
-      (_import_fet_definition_id == (_request_fission_power_in_density_file
-                                         ? _density_fe_definition_id
-                                         : _temperature_fe_definition_id));
   const std::string tracking = getTrackingFileNameComponent();
 
   // Generate the export file name and then open it for writing
@@ -402,7 +333,7 @@ SerpentExecutioner::exportCoefficients(const std::vector<Real> & out_coefficient
     // The interface type
     writer << (_request_fission_power_in_density_file ? IFC_TYPE_FET_DENSITY : IFC_TYPE_FET_TEMP);
     // The FE type
-    if (type == "Cartesian")
+    if (_series_type_name == "Cartesian")
       writer << " " << FET_TYPE_CARTESIAN;
     else
       writer << " " << FET_TYPE_CYLINDRICAL;
@@ -419,21 +350,32 @@ SerpentExecutioner::exportCoefficients(const std::vector<Real> & out_coefficient
     // The fission power density FET file name
     writer << getFissionPowerDensityFileName();
     // Duplicate the same FE parameters for both the input and the output?
-    if (identical_fe_definitions)
-      writer << " " << YES;
-    else
-      writer << " " << NO;
-    // Write the imported FET parameters
-    for (const auto & param : _import_fet_params)
-      writer << " " << param;
-    writer << "\n";
-    // Write the non-identical exported parameters, if required
-    if (!identical_fe_definitions)
+    writer << " " << YES;
+    // Write out the geometry-specific FE parameters
+    // clang-format off
+    if (_series_type_name == "Cartesian")
     {
-      for (const auto & param : params)
-        writer << " " << param;
-      writer << "\n";
+      //               min x                         max x                         Legendre order
+      writer << " " << _physical_bounds[0] << " " << _physical_bounds[1] << " " << _orders[0]
+             //        min y                         max y                         Legendre order
+             << " " << _physical_bounds[2] << " " << _physical_bounds[3] << " " << _orders[1]
+             //        min z                         max z                         Legendre order
+             << " " << _physical_bounds[4] << " " << _physical_bounds[5] << " " << _orders[2];
     }
+    else // CylindricalDuo
+    {
+      //               outer radius                  Zernike order
+      writer << " " << _physical_bounds[4] << " " << _orders[1]
+             //        axial bottom                  axial top                     Legendre order
+             << " " << _physical_bounds[0] << " " << _physical_bounds[1] << " " << _orders[0]
+             //        axial orientation
+             << " " << (_x.isValid() ? FET_ORIENTATION_X
+                              : (_y.isValid() ? FET_ORIENTATION_Y : FET_ORIENTATION_Z))
+             //        axial center 1                axial center 2
+             << " " << _physical_bounds[2] << " " << _physical_bounds[3];
+    }
+    // clang-format on
+    writer << "\n";
 
     /*
      * Write out the exported FE coefficients
@@ -495,25 +437,6 @@ SerpentExecutioner::exportCoefficients(const std::vector<Real> & out_coefficient
 
     // Close the template input file
     reader.close();
-  }
-}
-
-const MooseEnum &
-SerpentExecutioner::getFEDefinitionType(unsigned int definition)
-{
-  switch (definition)
-  {
-    case 1:
-      return _fe1_type;
-
-    case 2:
-      return _fe2_type;
-
-    case 3:
-      return _fe3_type;
-
-    default:
-      mooseError("Unknown FE definition '%u', must be '1', '2', or '3'.", definition);
   }
 }
 

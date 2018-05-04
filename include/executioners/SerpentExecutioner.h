@@ -40,46 +40,6 @@ protected:
   virtual void init() override;
 
 protected:
-  /// One of three possible FE definitions, specifies the type
-  const MooseEnum _fe1_type;
-
-  /// Two of three possible FE definitions, specifies the type
-  const MooseEnum _fe2_type;
-
-  /// Three of three possible FE definitions, specifies the type
-  const MooseEnum _fe3_type;
-
-  /// One of three possible FE definitions, specifies the parameters as used in Serpent
-  const std::vector<Real> _fe1_params;
-
-  /// Two of three possible FE definitions, specifies the parameters as used in Serpent
-  const std::vector<Real> _fe2_params;
-
-  /// Three of three possible FE definitions, specifies the parameters as used in Serpent
-  const std::vector<Real> _fe3_params;
-
-  /// Specifies which FE definition should be used for the imported fission power density FET
-  const unsigned int & _import_fet_definition_id;
-
-  /// Specifies which FE definition should be used for the exported density FE
-  const unsigned int & _density_fe_definition_id;
-
-  /// Specifies which FE definition should be used for the exported temperature FE
-  const unsigned int & _temperature_fe_definition_id;
-
-  /// Reference to the appropriate FE definition parameters for the imported fission power density
-  /// FET. A reference is used so that the same definition can be transparently reused for multiple
-  /// FEs.
-  const std::vector<Real> & _import_fet_params;
-
-  /// Reference to the appropriate FE definition parameters for the exported density FE. A reference
-  /// is used so that the same definition can be transparently reused for multiple FEs.
-  const std::vector<Real> & _density_fe_params;
-
-  /// Reference to the appropriate FE definition parameters for the exported temperature FE. A
-  /// reference is used so that the same definition can be transparently reused for multiple FEs.
-  const std::vector<Real> & _temperature_fe_params;
-
   /// Name of the multiphysics interface file for density
   const std::string _serpent_interface_density_file_name;
 
@@ -115,11 +75,6 @@ protected:
 
   /// A Function that defines a power level
   Function * const _function_power_level;
-
-  /**
-   * Return the MooseEnum for the FE type corresponding to the FE definition ID
-   */
-  const MooseEnum & getFEDefinitionType(unsigned int definition);
 
   /**
    * Get the name of the output file that contains the fission power density FET from Serpent
