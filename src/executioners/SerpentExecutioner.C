@@ -153,14 +153,8 @@ SerpentExecutioner::SerpentExecutioner(const InputParameters & parameters)
                            : (_is_power_level_an_average
                                   ? getParam<Real>("average_power_level_const")
                                   : (isParamValid("scale_power_level_const")
-                                         ? getParam<Real>("average_power_level_const")
-                                         : 1.0))),
-    _function_power_level(
-        _is_power_level_time_varying
-            ? (_is_power_level_an_average
-                   ? &getFunctionByName(getParam<FunctionName>("average_power_level_function"))
-                   : &getFunctionByName(getParam<FunctionName>("scale_power_level_function")))
-            : NULL)
+                                         ? getParam<Real>("scale_power_level_const")
+                                         : 1.0)))
 {
   /*
    * Ensure sanity for the interface file names
@@ -204,7 +198,7 @@ SerpentExecutioner::SerpentExecutioner(const InputParameters & parameters)
                "used. Please remove or comment-out the parameter that is not to be used.");
   // Check to see if at least one constant and function are both defined. If both are defined then
   // we will assume that the function-based form is the preferred option and flag the constant.
-  if (_const_power_level > 0.0 && _function_power_level)
+  if (_const_power_level > 0.0 && _is_power_level_time_varying)
   {
     if (isParamValid("average_power_level_const"))
     {
@@ -238,6 +232,21 @@ SerpentExecutioner::SerpentExecutioner(const InputParameters & parameters)
 void
 SerpentExecutioner::init()
 {
+  /*
+   * Get the function pointer if needed.
+   *
+   * This can't be done in the initialization list because Functions haven't been constructed yet.
+   */
+  if (_is_power_level_time_varying)
+  {
+    if (_is_power_level_an_average)
+      _function_power_level =
+          &getFunctionByName(getParam<FunctionName>("average_power_level_function"));
+    else
+      _function_power_level =
+          &getFunctionByName(getParam<FunctionName>("scale_power_level_function"));
+  }
+
   /*
    * Generate the SerpentTimeStepper if the user didn't already define in. Most of the time the
    * default values for SerpentTimeStepper are sufficient, so defining it here is expected to be the

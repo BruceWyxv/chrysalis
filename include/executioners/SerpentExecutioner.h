@@ -74,7 +74,7 @@ protected:
   const Real _const_power_level;
 
   /// A Function that defines a power level
-  Function * const _function_power_level;
+  Function * _function_power_level;
 
   /**
    * Get the name of the output file that contains the fission power density FET from Serpent
