@@ -535,7 +535,9 @@ SerpentExecutioner::importCoefficients(std::vector<Real> & array_to_fill)
                   multiplier /= coefficient;
 
                 _console << COLOR_BLUE << "\nMultiplying the fission power density FET by "
-                         << std::setprecision(6) << multiplier << "\n"
+                         << std::setprecision(6) << multiplier
+                         << " to acheive a power level with an average value of "
+                         << std::setprecision(6) << multiplier * coefficient << "\n"
                          << COLOR_DEFAULT << std::endl;
               }
               else if (region != first_region)
