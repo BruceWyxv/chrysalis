@@ -12,33 +12,28 @@ validParams<SerpentTimeStepper>()
 
   params.addClassDescription("TimeStepper for running the Serpent Reactor Physics MC code "
                              "developed at VTT, Finland");
+  params.set<std::string>("_object_name", "SerpentTimeStepper");
 
   /*
    * Files for interfacing
    */
-  params.addRequiredParam<std::string>(
+  params.addParam<std::string>(
       "serpent_input",
+      "",
       "Name of the main Serpent input file to be used as a template for creating the multiphysics "
       "interface. Namely, the communication settings and the \"ifc ...\" lines will be appended to "
       "a duplicate file using the name \"'serpent_input'.moose\".");
-  params.addParam<std::string>("signal_file_base",
-                               ".serpent_posix",
-                               "The base name of the files to be used to pass signals between "
-                               "MOOSE and Serpent. The actual files will be generated from this "
-                               "base name using a guaranteed unique identifier for each "
-                               "SerpentTimeStepper instance.");
-  params.addParamNamesToGroup("serpent_input signal_file_base", "Interface Files");
+  // params.addParam<std::string>("signal_file_base",
+  //                              ".serpent_posix",
+  //                              "The base name of the files to be used to pass signals between "
+  //                              "MOOSE and Serpent. The actual files will be generated from this "
+  //                              "base name using a guaranteed unique identifier for each "
+  //                              "SerpentTimeStepper instance.");
+  params.addParamNamesToGroup("serpent_input", "Interface Files");
 
   /*
    * Parallel processing options
    */
-#ifdef SERPENT_MPI_AVAILABLE
-  params.addParam<long>("serpent_mpi_tasks",
-                        -1,
-                        "The number of MPI tasks with which to run Serpent. A value of '-1' will "
-                        "default to the number of ranks in the communicator for this Executioner.");
-  params.addParamNamesToGroup("serpent_mpi_tasks", "Serpent Execution Options");
-#endif // SERPENT_MPI_AVAILABLE
 #ifdef SERPENT_OPENMP_AVAILABLE
   params.addParam<int>("serpent_omp_threads",
                        -1,
@@ -52,25 +47,28 @@ validParams<SerpentTimeStepper>()
 
 SerpentTimeStepper::SerpentTimeStepper(const InputParameters & parameters)
   : TimeStepper(parameters),
-    _unique(declareRecoverableData<std::string>("unique", makeOmpMpiUnique())),
-    _first_run(declareRecoverableData<bool>("first_run", true)),
-    _posix_signals_from_serpent_file_name(
-        makePosixFileName(getParam<std::string>("signal_file_base"), _unique, true)),
-    _posix_signals_to_serpent_file_name(
-        makePosixFileName(getParam<std::string>("signal_file_base"), _unique, false)),
+    // _posix_signals_from_serpent_file_name(
+    //     makePosixFileName(getParam<std::string>("signal_file_base"), _unique, true)),
+    // _posix_signals_to_serpent_file_name(
+    //     makePosixFileName(getParam<std::string>("signal_file_base"), _unique, false)),
     _serpent_input_template_file_name(getParam<std::string>("serpent_input")),
-    _serpent_input_file_name(_serpent_input_template_file_name + ".moose"),
-#ifdef SERPENT_MPI_AVAILABLE
-    _serpent_mpi_tasks(getParam<long>("serpent_mpi_tasks")),
-#else
-    _serpent_mpi_tasks(0),
-#endif // SERPENT_MPI_AVAILABLE
+    _serpent_input_file_name(makeInputFileNameFromTemplate(_serpent_input_template_file_name)),
 #ifdef SERPENT_OPENMP_AVAILABLE
-    _serpent_omp_threads(getParam<int>("serpent_omp_threads"))
+    _serpent_omp_threads(getParam<int>("serpent_omp_threads")),
 #else
-    _serpent_omp_threads(0)
+    _serpent_omp_threads(0),
 #endif // SERPENT_OPENMP_AVAILABLE
+    _first_serpent_step(true)
 {
+}
+
+void
+SerpentTimeStepper::appendCommand(int & argv,
+                                  std::vector<std::string> & arg_strings,
+                                  const std::string & new_arg)
+{
+  arg_strings.push_back(new_arg);
+  ++argv;
 }
 
 Real
@@ -95,78 +93,155 @@ SerpentTimeStepper::converged()
 void
 SerpentTimeStepper::init()
 {
+  int argv = 0;
+  std::vector<char *> argc;
+  std::vector<std::string> arg_strings;
+  std::ostringstream formatter;
+
+  appendCommand(argv, arg_strings, "chrysalis");
+  appendCommand(argv, arg_strings, _serpent_input_file_name);
+
+#ifdef SERPENT_OPENMP_AVAILABLE
+  if (_serpent_omp_threads > 1)
+  {
+    appendCommand(argv, arg_strings, "-omp");
+
+    formatter.str("");
+    formatter.clear();
+    formatter << _serpent_omp_threads;
+    appendCommand(argv, arg_strings, formatter.str());
+  }
+#endif // SERPENT_OPENMP_AVAILABLE
+
+  for (auto & string : arg_strings)
+    argc.push_back(&string[0]);
+  serpentInit(argv, &argc[0]);
 }
 
 const std::string &
-SerpentTimeStepper::GetSerpentInputFileName() const
+SerpentTimeStepper::getSerpentInputFileName() const
 {
   return _serpent_input_file_name;
 }
 
 const std::string &
-SerpentTimeStepper::GetSerpentInputTemplateFileName() const
+SerpentTimeStepper::getSerpentInputTemplateFileName() const
 {
   return _serpent_input_template_file_name;
 }
 
-const std::string &
-SerpentTimeStepper::GetSignalFromSerpentFileName() const
-{
-  return _posix_signals_from_serpent_file_name;
-}
+// const std::string &
+// SerpentTimeStepper::GetSignalFromSerpentFileName() const
+// {
+//   return _posix_signals_from_serpent_file_name;
+// }
+//
+// const std::string &
+// SerpentTimeStepper::GetSignalToSerpentFileName() const
+// {
+//   return _posix_signals_to_serpent_file_name;
+// }
+//
+// const std::string &
+// SerpentTimeStepper::getUniqueIdentifier() const
+// {
+//   return _unique;
+// }
 
-const std::string &
-SerpentTimeStepper::GetSignalToSerpentFileName() const
+std::string
+SerpentTimeStepper::makeInputFileNameFromTemplate(const std::string & template_name)
 {
-  return _posix_signals_to_serpent_file_name;
-}
-
-const std::string &
-SerpentTimeStepper::GetUniqueIdentifier() const
-{
-  return _unique;
+  return template_name + ".moose";
 }
 
 std::string
-SerpentTimeStepper::makeOmpMpiUnique()
+SerpentTimeStepper::makeMpiUnique()
 {
-  static std::atomic<uint64_t> id;
-  const uint64_t next_id = id++;
-
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   std::ostringstream formatter("");
-  formatter << ".o" << next_id << ".m" << rank;
+  formatter << ".m" << rank;
 
   return formatter.str();
 }
 
-std::string
-SerpentTimeStepper::makePosixFileName(const std::string & file_base,
-                                      const std::string & unique,
-                                      bool from_serpent)
+// std::string
+// SerpentTimeStepper::makePosixFileName(const std::string & file_base,
+//                                       const std::string & unique,
+//                                       bool from_serpent)
+// {
+//   std::string file_name(file_base);
+//
+//   file_name.append(unique + (from_serpent ? ".from_serpent" : ".to_serpent"));
+//
+//   return file_name;
+// }
+
+int
+SerpentTimeStepper::serpentInit(int argc, char ** argv)
 {
-  std::string file_name(file_base);
+  _console << COLOR_YELLOW << "Starting Serpent initialization..." << COLOR_DEFAULT << std::endl;
 
-  file_name.append(unique + (from_serpent ? ".from_serpent" : ".to_serpent"));
+  /////////////////////////////////////////////////////////////////////////////////
+  // 504 lines redacted to maintain compliance with RSICC export control license //
+  /////////////////////////////////////////////////////////////////////////////////
 
-  return file_name;
+  _console << COLOR_YELLOW << "Serpent initialization complete!" << COLOR_DEFAULT << std::endl;
+
+  return 0;
 }
 
 void
-SerpentTimeStepper::postExecute()
+SerpentTimeStepper::serpentPostIterate()
 {
+  /////////////////////////////////////////////////////////////////////////////////
+  //  47 lines redacted to maintain compliance with RSICC export control license //
+  /////////////////////////////////////////////////////////////////////////////////
+}
+
+void
+SerpentTimeStepper::serpentPreIterate()
+{
+  /////////////////////////////////////////////////////////////////////////////////
+  //  79 lines redacted to maintain compliance with RSICC export control license //
+  /////////////////////////////////////////////////////////////////////////////////
+}
+
+void
+SerpentTimeStepper::setInputFileName(const std::string & template_name)
+{
+  if (_serpent_input_template_file_name.empty())
+  {
+    _serpent_input_template_file_name = template_name;
+    _serpent_input_file_name = makeInputFileNameFromTemplate(template_name);
+  }
+  else
+    mooseError("SerpentTimeStepper: the template input file name has already been set.");
 }
 
 void
 SerpentTimeStepper::step()
 {
-  if (_first_run)
-  {
-    // Do the special stuff required for the first Serpent run
-    _first_run = false;
-  }
+  _console << COLOR_YELLOW << "Starting a Serpent run..." << COLOR_DEFAULT << std::endl;
 
-  // Do the rest of the stuff
+  if (_first_serpent_step)
+    _first_serpent_step = false;
+  else
+    serpentPreIterate();
+
+  /////////////////////////////////////////////////////////////////////////////////
+  //   8 lines redacted to maintain compliance with RSICC export control license //
+  /////////////////////////////////////////////////////////////////////////////////
+
+  serpentPostIterate();
+
+  _console << COLOR_YELLOW << "Serpent run complete." << COLOR_DEFAULT << std::endl;
+}
+
+SerpentTimeStepper::~SerpentTimeStepper()
+{
+  /////////////////////////////////////////////////////////////////////////////////
+  //  15 lines redacted to maintain compliance with RSICC export control license //
+  /////////////////////////////////////////////////////////////////////////////////
 }

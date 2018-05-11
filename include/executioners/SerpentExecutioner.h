@@ -46,6 +46,9 @@ protected:
   /// Name of the multiphysics interface file for temperatures
   const std::string _serpent_interface_temperature_file_name;
 
+  /// The initial constant value that will be fed into Serpent
+  const Real _serpent_initial_constant_fe_value;
+
   /// The name of the material in Serpent that will have its cross-sections adjusted on-the-fly
   /// using the exported FE
   const std::string _serpent_otf_material;
@@ -53,6 +56,9 @@ protected:
   /// The name of the material in Serpent that is the outermost layer of a pin definition, used to
   /// identify which pins should be scored for the fission power density FET
   const std::string _serpent_fission_power_outermost_material;
+
+  /// Name of the main Serpent input file name
+  const std::string _serpent_input_template_file_name;
 
   /// Name of the multiphysics interface file for fission power density
   const std::string _serpent_interface_fission_power_density_file_name;
@@ -77,9 +83,20 @@ protected:
   Function * _function_power_level;
 
   /**
+   * Writes the main interface file for Serpent
+   */
+  void generateSerpentInterfaceFile(const std::string & interface_base,
+                                    const std::vector<Real> & out_coefficients) const;
+
+  /**
+   * Writes the main input file for Serpent
+   */
+  void generateSerpentInputFile(const std::string & interface_base) const;
+
+  /**
    * Get the name of the output file that contains the fission power density FET from Serpent
    */
-  std::string getFissionPowerDensityFileName() const;
+  std::string getFissionPowerDensityFileName(bool generate_history_filename) const;
 
   /**
    * Returns the time stepper as a SerpentTimeStepper reference

@@ -131,6 +131,10 @@ else
 # Only source files were modified, recompile and rebuild as neccessary
 SERPENT_UPDATES				= 1
 endif
+ifeq (,$(wildcard $(SERPENT_LIB)))
+# The library is not found, so rebuild
+SERPENT_UPDATES				= 1
+endif
 
 ###############################################################################
 
