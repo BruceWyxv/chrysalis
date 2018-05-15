@@ -54,9 +54,11 @@ SerpentTimeStepper::SerpentTimeStepper(const InputParameters & parameters)
     _serpent_input_template_file_name(getParam<std::string>("serpent_input")),
     _serpent_input_file_name(makeInputFileNameFromTemplate(_serpent_input_template_file_name)),
 #ifdef SERPENT_OPENMP_AVAILABLE
-    _serpent_omp_threads(getParam<int>("serpent_omp_threads")),
+    _serpent_omp_threads(getParam<int>("serpent_omp_threads") > 0
+                             ? getParam<int>("serpent_omp_threads")
+                             : libMesh::n_threads()),
 #else
-    _serpent_omp_threads(0),
+    _serpent_omp_threads(1),
 #endif // SERPENT_OPENMP_AVAILABLE
     _first_serpent_step(true)
 {
