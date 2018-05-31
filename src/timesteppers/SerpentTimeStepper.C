@@ -23,12 +23,6 @@ validParams<SerpentTimeStepper>()
       "Name of the main Serpent input file to be used as a template for creating the multiphysics "
       "interface. Namely, the communication settings and the \"ifc ...\" lines will be appended to "
       "a duplicate file using the name \"'serpent_input'.moose\".");
-  // params.addParam<std::string>("signal_file_base",
-  //                              ".serpent_posix",
-  //                              "The base name of the files to be used to pass signals between "
-  //                              "MOOSE and Serpent. The actual files will be generated from this "
-  //                              "base name using a guaranteed unique identifier for each "
-  //                              "SerpentTimeStepper instance.");
   params.addParamNamesToGroup("serpent_input", "Interface Files");
 
   /*
@@ -47,10 +41,6 @@ validParams<SerpentTimeStepper>()
 
 SerpentTimeStepper::SerpentTimeStepper(const InputParameters & parameters)
   : TimeStepper(parameters),
-    // _posix_signals_from_serpent_file_name(
-    //     makePosixFileName(getParam<std::string>("signal_file_base"), _unique, true)),
-    // _posix_signals_to_serpent_file_name(
-    //     makePosixFileName(getParam<std::string>("signal_file_base"), _unique, false)),
     _serpent_input_template_file_name(getParam<std::string>("serpent_input")),
     _serpent_input_file_name(makeInputFileNameFromTemplate(_serpent_input_template_file_name)),
 #ifdef SERPENT_OPENMP_AVAILABLE
@@ -132,24 +122,6 @@ SerpentTimeStepper::getSerpentInputTemplateFileName() const
   return _serpent_input_template_file_name;
 }
 
-// const std::string &
-// SerpentTimeStepper::GetSignalFromSerpentFileName() const
-// {
-//   return _posix_signals_from_serpent_file_name;
-// }
-//
-// const std::string &
-// SerpentTimeStepper::GetSignalToSerpentFileName() const
-// {
-//   return _posix_signals_to_serpent_file_name;
-// }
-//
-// const std::string &
-// SerpentTimeStepper::getUniqueIdentifier() const
-// {
-//   return _unique;
-// }
-
 std::string
 SerpentTimeStepper::makeInputFileNameFromTemplate(const std::string & template_name)
 {
@@ -167,18 +139,6 @@ SerpentTimeStepper::makeMpiUnique()
 
   return formatter.str();
 }
-
-// std::string
-// SerpentTimeStepper::makePosixFileName(const std::string & file_base,
-//                                       const std::string & unique,
-//                                       bool from_serpent)
-// {
-//   std::string file_name(file_base);
-//
-//   file_name.append(unique + (from_serpent ? ".from_serpent" : ".to_serpent"));
-//
-//   return file_name;
-// }
 
 int
 SerpentTimeStepper::serpentInit(int argc, char ** argv)

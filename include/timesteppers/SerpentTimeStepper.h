@@ -30,16 +30,6 @@ public:
    */
   const std::string & getSerpentInputTemplateFileName() const;
 
-  // /**
-  //  * Gets the name of the file in which any POSIX signals from Serpent will be found
-  //  */
-  // const std::string & getSignalFromSerpentFileName() const;
-  //
-  // /**
-  //  * Gets the name of the file to which any POSIX signals to Serpent will be written
-  //  */
-  // const std::string & getSignalToSerpentFileName() const;
-
   /**
    * Generate a string that is unique for each instance based on any threading and MPI ranks
    */
@@ -64,12 +54,6 @@ protected:
   virtual void step() override;
 
 protected:
-  // /// Name of the file used to receive POSIX signals from Serpent
-  // const std::string _posix_signals_from_serpent_file_name;
-  //
-  // /// Name of the file used to send POSIX signals to Serpent
-  // const std::string _posix_signals_to_serpent_file_name;
-
   /// Name of the main Serpent input file name
   std::string _serpent_input_template_file_name;
 
@@ -78,13 +62,6 @@ protected:
 
   /// The number of OpenMP threads with which to run Serpent
   const int _serpent_omp_threads;
-
-  // /**
-  //  * Make a guaranteed unique name for each instance of SerpentTimeStepper
-  //  */
-  // static std::string
-  // makePosixFileName(const std::string & file_base, const std::string & unique, bool
-  // from_serpent);
 
 private:
   /**

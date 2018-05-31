@@ -55,13 +55,6 @@ validParams<SerpentExecutioner>()
                                "fet",
                                "The name of the file to which Serpent should write the fission "
                                "power FETs as \"'file_name'.pwr\".");
-  // params.addParam<std::string>("signal_file_base",
-  //                              ".serpent_posix",
-  //                              "The base name of the files to be used to pass signals between "
-  //                              "MOOSE and Serpent. The actual files will be generated from this "
-  //                              "base name using a guaranteed unique identifier for this "
-  //                              "Executioner instance. NOTE: this value will be ignored if "
-  //                              "SerpentTimeStepper is explicitly defined.");
   params.addParamNamesToGroup("serpent_input serpent_density_file serpent_temperature_file "
                               "serpent_fission_power_file",
                               "Interface Files");
