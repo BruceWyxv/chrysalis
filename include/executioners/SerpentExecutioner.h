@@ -23,23 +23,26 @@ class SerpentExecutioner : public FXExecutioner, FunctionInterface
 public:
   SerpentExecutioner(const InputParameters & parameters);
 
+  // Overrides from FXExecutioner
+  virtual Real getNormalization(const std::vector<Real> & _coefficients) const override;
+  virtual std::size_t mapIndexingMooseToExternal(const std::size_t mooose_fe_index) const override;
+
 protected:
   /**
-   * Extracts the coefficients generated from Serpent and loads them into the MCI instance
+   * Writes the coefficients to the Serpent multiphysics input files
    */
-  virtual void exportCoefficients(const std::vector<Real> & out_coefficients) override;
+  virtual void exportCoefficients(const FixedSizeArray<Real> & out_coefficients) override;
 
   /**
-   * Takes the coefficients from MCI and writes them to the Serpent multiphysics input files
+   * Extracts the coefficients generated from Serpent and loads them into the provided array
    */
-  virtual void importCoefficients(std::vector<Real> & array_to_fill) override;
+  virtual void importCoefficients(FixedSizeArray<Real> & array_to_fill) override;
 
   /**
    * Sets the default TimeStepper to SerpentTimeStepper if needed, then calls Transient::init()
    */
   virtual void init() override;
 
-protected:
   /// Name of the multiphysics interface file for density
   const std::string _serpent_interface_density_file_name;
 
@@ -86,7 +89,7 @@ protected:
    * Writes the main interface file for Serpent
    */
   void generateSerpentInterfaceFile(const std::string & interface_base,
-                                    const std::vector<Real> & out_coefficients) const;
+                                    const FixedSizeArray<Real> & out_coefficients) const;
 
   /**
    * Writes the main input file for Serpent

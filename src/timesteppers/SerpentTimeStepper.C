@@ -1,5 +1,8 @@
 #include <atomic>
 
+#include "Transient.h"
+
+#include "SerpentExecutioner.h"
 #include "SerpentTimeStepper.h"
 
 registerMooseObject("ChrysalisApp", SerpentTimeStepper);
@@ -108,6 +111,11 @@ SerpentTimeStepper::init()
   for (auto & string : arg_strings)
     argc.push_back(&string[0]);
   serpentInit(argv, &argc[0]);
+
+  SerpentExecutioner * const check = dynamic_cast<SerpentExecutioner *>(&_executioner);
+  if (!check)
+    mooseError("The Executioner using this SerpentTimeStepper is not a SerpentExecutioner. It must "
+               "be, so please change it.");
 }
 
 const std::string &
