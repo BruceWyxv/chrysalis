@@ -4,8 +4,6 @@
 
 registerMooseObject("ChrysalisApp", TREATHeatAux);
 
-const Real _ninety_log = log(0.9);
-
 template <>
 InputParameters
 validParams<TREATHeatAux>()
